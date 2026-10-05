@@ -4,12 +4,6 @@ import { useState } from "react";
 import { applyTheme, THEMES, type Theme } from "@/lib/theme";
 import { saveTheme } from "@/lib/theme-actions";
 
-const LABELS: Record<Theme, string> = {
-  system: "System",
-  light: "Light",
-  dark: "Dark",
-};
-
 // The server renders <html data-theme> from the same cookie, so the choice is
 // in place on first paint after a reload.
 export function ThemeToggle({ initial }: { initial: Theme }) {
@@ -25,7 +19,7 @@ export function ThemeToggle({ initial }: { initial: Theme }) {
     <div
       role="radiogroup"
       aria-label="Theme"
-      className="flex rounded-full border border-border p-0.5 text-xs font-medium"
+      className="flex rounded-md border border-border p-0.5 text-[13px]"
     >
       {THEMES.map((t) => (
         <button
@@ -34,13 +28,13 @@ export function ThemeToggle({ initial }: { initial: Theme }) {
           role="radio"
           aria-checked={theme === t}
           onClick={() => choose(t)}
-          className={`h-7 rounded-full px-3 transition-colors ${
+          className={`h-7 rounded px-2.5 transition-colors ${
             theme === t
-              ? "bg-foreground text-background"
+              ? "bg-muted text-foreground"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          {LABELS[t]}
+          {t}
         </button>
       ))}
     </div>
