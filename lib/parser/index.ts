@@ -19,11 +19,12 @@ import { combineAdapters, type FrameworkAdapter } from "./adapter.ts";
 import { extractImports } from "./extract.ts";
 import { computeFan } from "./graph.ts";
 import { Resolver } from "./resolve.ts";
-import { walkRepository, type WalkOptions } from "./walk.ts";
+import { walkRepository, type WalkOptions, type WalkResult } from "./walk.ts";
 
 export * from "./contract.ts";
 export { readParseResult, writeParseResult, checkInvariants } from "./io.ts";
 export { fallbackAdapter, type FrameworkAdapter } from "./adapter.ts";
+export { walkRepository, type WalkResult } from "./walk.ts";
 
 export interface ParseOptions extends WalkOptions {
   /** Every one that detects the repository applies; earlier ones win a disputed file. */
@@ -41,7 +42,11 @@ function increment<K extends string>(record: Partial<Record<K, number>>, key: K)
 }
 
 export function parseRepository(directory: string, options: ParseOptions = {}): ParseResult {
-  const walk = walkRepository(directory, options);
+  return parseWalk(walkRepository(directory, options), options);
+}
+
+/** The parse on its own, for callers that look at the walk before parsing it. */
+export function parseWalk(walk: WalkResult, options: ParseOptions = {}): ParseResult {
   const nodePaths = new Set(walk.files.map((f) => f.path));
   const resolver = new Resolver(walk.root, nodePaths, walk.otherFiles, walk.packageJsons);
 

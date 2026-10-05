@@ -1,5 +1,14 @@
 import { auth } from "@clerk/nextjs/server";
+import Link from "next/link";
+import { AnalyseForm } from "@/components/analysis/analyse-form";
+import { LiveState } from "@/components/analysis/live-state";
+import { StateGlyph } from "@/components/analysis/state-glyph";
+import { isStale, type StageEvent } from "@/lib/pipeline/stages";
 import { createServerSupabase } from "@/lib/supabase/server";
+
+// A run started from the form runs after the response, within this route's
+// time limit.
+export const maxDuration = 300;
 
 // The active organization's analyses. The query has no organization filter on
 // purpose: the session token carries the organization, and row-level security
@@ -11,7 +20,7 @@ async function loadAnalyses() {
   const { data, error } = await supabase
     .from("analyses")
     .select(
-      "id, status, commit_sha, error, created_at, finished_at, project:projects(repo_owner, repo_name)",
+      "id, status, stage, stage_message, stage_at, commit_sha, error, created_at, finished_at, project:projects(repo_owner, repo_name)",
     )
     .order("created_at", { ascending: false });
 
@@ -23,7 +32,7 @@ async function loadAnalyses() {
   return { analyses: data, readAt: Date.now() };
 }
 
-const STATES = ["parsing", "queued", "complete", "failed"] as const;
+const STATES = ["parsing", "queued", "stale", "complete", "failed"] as const;
 
 export default async function DashboardPage() {
   const { orgId, sessionClaims } = await auth();
@@ -36,9 +45,14 @@ export default async function DashboardPage() {
     );
   }
 
-  const { analyses, readAt } = await loadAnalyses();
+  const { analyses: rows, readAt } = await loadAnalyses();
+  // An unfinished run that stopped moving is counted as stale, not as working.
+  const analyses = rows.map((a) => {
+    const movedAt = a.stage_at ?? a.created_at;
+    return { ...a, movedAt, state: isStale(a.status, movedAt, readAt) ? "stale" : a.status };
+  });
   const counts = STATES.map(
-    (s) => [s, analyses.filter((a) => a.status === s).length] as const,
+    (s) => [s, analyses.filter((a) => a.state === s).length] as const,
   ).filter(([, n]) => n > 0);
 
   return (
@@ -51,6 +65,9 @@ export default async function DashboardPage() {
           <span className="text-muted-foreground">
             {analyses.length === 1 ? "1 analysis" : `${analyses.length} analyses`}
           </span>
+        </div>
+        <div className="w-full max-w-xl">
+          <AnalyseForm />
         </div>
         {counts.length > 0 && (
           <ul className="flex flex-wrap items-center gap-x-5 gap-y-1 text-muted-foreground">
@@ -68,7 +85,7 @@ export default async function DashboardPage() {
         <div className="px-4 py-16 text-center sm:px-5">
           <p className="font-medium">No analyses yet</p>
           <p className="mx-auto mt-1 max-w-[52ch] text-muted-foreground">
-            When someone on this team analyses a repository, it shows up here
+            Paste a public GitHub repository above. Its analysis shows up here
             for everyone on the team.
           </p>
         </div>
@@ -87,25 +104,33 @@ export default async function DashboardPage() {
             {analyses.map((a) => (
               <tr key={a.id} className="border-b border-border align-top">
                 <td className="px-4 py-2.5 sm:pl-5">
-                  {a.project ? (
-                    <span className="font-mono">
-                      <span className="text-muted-foreground">
-                        {a.project.repo_owner}/
-                      </span>
-                      {a.project.repo_name}
-                    </span>
-                  ) : (
-                    <span className="text-faint-foreground">unknown repository</span>
-                  )}
+                  <Link href={`/analyses/${a.id}`} className="font-mono hover:text-accent">
+                    {a.project ? (
+                      <>
+                        <span className="text-muted-foreground">
+                          {a.project.repo_owner}/
+                        </span>
+                        {a.project.repo_name}
+                      </>
+                    ) : (
+                      <span className="text-faint-foreground">unknown repository</span>
+                    )}
+                  </Link>
                   {a.error && (
                     <p className="mt-0.5 text-muted-foreground">{a.error}</p>
                   )}
                 </td>
                 <td className="px-4 py-2.5 whitespace-nowrap">
-                  <span className="flex items-center gap-2">
-                    <StateGlyph state={a.status} />
-                    {a.status}
-                  </span>
+                  <LiveState
+                    id={a.id}
+                    readAt={readAt}
+                    initial={{
+                      status: a.status as StageEvent["status"],
+                      stage: a.stage as StageEvent["stage"],
+                      message: a.status === "failed" ? a.error : a.stage_message,
+                      movedAt: a.movedAt,
+                    }}
+                  />
                 </td>
                 <td className="hidden px-4 py-2.5 font-mono text-muted-foreground md:table-cell">
                   {a.commit_sha?.slice(0, 7) ?? <Dash />}
@@ -122,33 +147,6 @@ export default async function DashboardPage() {
         </table>
       )}
     </div>
-  );
-}
-
-// States are told apart by shape, not colour: filled when done, half while
-// parsing, hollow while waiting, a crossed circle when it failed.
-function StateGlyph({ state }: { state: string }) {
-  return (
-    <svg viewBox="0 0 12 12" className="size-3 shrink-0" aria-hidden="true">
-      {state === "complete" && (
-        <circle cx="6" cy="6" r="5.5" className="fill-muted-foreground" />
-      )}
-      {state === "parsing" && (
-        <>
-          <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M6 1a5 5 0 0 0 0 10z" fill="currentColor" />
-        </>
-      )}
-      {state === "queued" && (
-        <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      )}
-      {state === "failed" && (
-        <>
-          <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M4 4l4 4M8 4l-4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-        </>
-      )}
-    </svg>
   );
 }
 
