@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { rerunAnalysis } from "@/app/(app)/analyses/actions";
 import { RunProgressView } from "@/components/analysis/run-progress";
@@ -73,6 +74,11 @@ export default async function AnalysisPage({ params }: PageProps<"/analyses/[id]
           rerun={rerunAnalysis.bind(null, analysis.id)}
         />
 
+        {analysis.status === "complete" && (
+          <Link href={`/analyses/${analysis.id}/map`} className="self-start text-accent hover:underline">
+            Open the map
+          </Link>
+        )}
         {analysis.status === "complete" && (
           <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-1.5">
             <dt className="text-muted-foreground">Files</dt>

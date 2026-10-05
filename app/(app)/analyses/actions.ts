@@ -46,8 +46,12 @@ export async function analyseRepository(_prev: AnalyseState, form: FormData): Pr
     return { url, error: error instanceof Error ? error.message : "Starting the analysis failed." };
   }
 
-  if (analysis.created) startRun(analysis.id);
-  redirect(`/analyses/${analysis.id}`);
+  if (analysis.created) {
+    startRun(analysis.id);
+    redirect(`/analyses/${analysis.id}`);
+  }
+  // Already analysed: straight to its map if it has one, else to its run.
+  redirect(`/analyses/${analysis.id}${analysis.status === "complete" ? "/map" : ""}`);
 }
 
 /**

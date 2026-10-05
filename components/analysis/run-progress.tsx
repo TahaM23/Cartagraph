@@ -70,10 +70,13 @@ export function RunProgressView({
   }, [finished]);
   const stale = isStale(progress.status, progress.movedAt, now);
 
-  // A run that finishes while the page is open: render the finished page.
+  // A run that finishes while the page is open lands on its map; one that
+  // fails stays here and shows why.
   useEffect(() => {
-    if (finished && !isFinished(initial.status)) router.refresh();
-  }, [finished, initial.status, router]);
+    if (!finished || isFinished(initial.status)) return;
+    if (progress.status === "complete") router.replace(`/analyses/${id}/map`);
+    else router.refresh();
+  }, [finished, progress.status, initial.status, id, router]);
 
   return (
     <div className="flex flex-col gap-4">

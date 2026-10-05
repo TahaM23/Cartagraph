@@ -104,7 +104,10 @@ export default async function DashboardPage() {
             {analyses.map((a) => (
               <tr key={a.id} className="border-b border-border align-top">
                 <td className="px-4 py-2.5 sm:pl-5">
-                  <Link href={`/analyses/${a.id}`} className="font-mono hover:text-accent">
+                  <Link
+                    href={`/analyses/${a.id}${a.status === "complete" ? "/map" : ""}`}
+                    className="font-mono hover:text-accent"
+                  >
                     {a.project ? (
                       <>
                         <span className="text-muted-foreground">

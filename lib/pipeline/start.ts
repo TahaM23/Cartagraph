@@ -19,6 +19,7 @@ export interface StartedAnalysis {
   id: string;
   /** False when the repository already had an analysis; nothing new should run. */
   created: boolean;
+  status: string;
 }
 
 async function findOrCreate<T>(
@@ -63,16 +64,16 @@ export async function startAnalysis(db: Db, orgId: string, repo: RepositoryRef):
     "project",
   );
 
-  const { row: analysis, created } = await findOrCreate<{ id: string }>(
-    () => db.from("analyses").select("id").eq("project_id", project.id).maybeSingle(),
+  const { row: analysis, created } = await findOrCreate<{ id: string; status: string }>(
+    () => db.from("analyses").select("id, status").eq("project_id", project.id).maybeSingle(),
     () =>
       db
         .from("analyses")
         .insert({ org_id: orgId, project_id: project.id, status: "queued" })
-        .select("id")
+        .select("id, status")
         .single(),
     "analysis",
   );
 
-  return { id: analysis.id, created };
+  return { id: analysis.id, created, status: analysis.status };
 }
