@@ -7,7 +7,9 @@ import {
   edgePath,
   aboveText,
   moreText,
+  nodeMatchMeta,
   nodeMeta,
+  panelMatchMeta,
   panelMeta,
   place,
   HEADER_H,
@@ -105,6 +107,7 @@ export function CodeMap() {
     hovered,
     hover,
     registerMap,
+    category,
   } = useAnalysis();
   const columns = useMemo(() => arrange(model), [model]);
   const layout = useMemo(() => place(columns, view), [columns, view]);
@@ -274,7 +277,25 @@ export function CodeMap() {
     }
     return keep;
   }, [chosen, view.links]);
-  const dim = (unit: UnitId) => (related && !related.has(unit) ? DIM : "");
+  // A picked rail category: how many of each box's files are in it, and the
+  // units drawing at least one of them. Everything else dims but stays.
+  const matching = useMemo(() => {
+    if (category === null) return null;
+    const perBox = new Map<string, number>();
+    const units = new Set<UnitId>();
+    for (const box of view.boxes) {
+      let n = 0;
+      for (const p of box.files) {
+        if (categoryOf(model.files.get(p)!) !== category) continue;
+        n++;
+        units.add(view.anchor.get(p)!);
+      }
+      perBox.set(box.dir, n);
+    }
+    return { perBox, units };
+  }, [category, view, model]);
+  const outside = (unit: UnitId) => matching !== null && !matching.units.has(unit);
+  const dim = (unit: UnitId) => ((related && !related.has(unit)) || outside(unit) ? DIM : "");
   // A hovered file lights whatever it is drawn as: its row, its folded node,
   // or the line standing in for it in a scrolled panel.
   const hot = (unit: UnitId) =>
@@ -340,6 +361,7 @@ export function CodeMap() {
             const toChosen = chosen?.has(l.target) ?? false;
             const lit = fromChosen || toChosen;
             const tone = fromChosen === toChosen ? "plain" : toChosen ? "in" : "out";
+            const away = outside(l.source) || outside(l.target);
             return (
               <path
                 key={`${l.source}\0${l.target}`}
@@ -347,7 +369,7 @@ export function CodeMap() {
                 fill="none"
                 strokeWidth={Math.min(1.75, 0.75 + 0.2 * Math.log2(l.pairs))}
                 markerEnd={`url(#cg-arrow-${tone})`}
-                className={`transition-opacity ${chosen === null ? "opacity-60" : lit ? "" : "opacity-10"}`}
+                className={`transition-opacity ${chosen === null ? (away ? "opacity-10" : "opacity-60") : lit && !away ? "" : "opacity-10"}`}
                 style={{ stroke: `var(${TONE_VAR[tone]})` }}
               />
             );
@@ -382,14 +404,16 @@ export function CodeMap() {
                   {label}
                 </span>
                 <span className="font-mono leading-tight text-muted-foreground" style={{ fontSize: META_PX }}>
-                  {nodeMeta(box)}
+                  {matching ? nodeMatchMeta(box, matching.perBox.get(box.dir)!) : nodeMeta(box)}
                 </span>
                 <CategoryBar files={box.files} model={model} />
               </button>
             );
           }
 
-          const panelLit = !related || panelUnits(box).some((u) => related.has(u));
+          const panelLit =
+            (!related || panelUnits(box).some((u) => related.has(u))) &&
+            (!matching || matching.perBox.get(box.dir)! > 0);
           return (
             <div
               key={box.dir}
@@ -414,7 +438,7 @@ export function CodeMap() {
                   {label}
                 </span>
                 <span className="font-mono leading-tight text-muted-foreground" style={{ fontSize: META_PX }}>
-                  {panelMeta(box)}
+                  {matching ? panelMatchMeta(box, matching.perBox.get(box.dir)!) : panelMeta(box)}
                 </span>
               </button>
               {box.above > 0 && (

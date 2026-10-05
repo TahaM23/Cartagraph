@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Category } from "@/lib/canvas/categories";
-import { CategoryLabel } from "./category-label";
+import { CategoryRail } from "./category-rail";
 
 // The analysis view's three columns: a narrow rail, the map, a detail pane.
 // This arrangement is settled. Later phases fill the columns; they do not move
@@ -35,19 +35,7 @@ export function AnalysisShell({
             {files === 1 ? "1 file" : `${files} files`}
           </p>
         </div>
-        <ul className="py-1.5">
-          {categories.map(({ category, files }) => (
-            <li
-              key={category}
-              className="flex items-center gap-2.5 px-3 py-1 text-[13px]"
-            >
-              <CategoryLabel category={category} className="flex-1 truncate" />
-              <span className="font-mono text-muted-foreground tabular-nums">
-                {files}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <CategoryRail categories={categories} />
       </nav>
 
       <section aria-label="Map" className="relative min-h-0 min-w-0 bg-surface">

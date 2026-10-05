@@ -15,7 +15,7 @@ import {
   type ParseResult,
   type UnresolvedImport,
 } from "./contract.ts";
-import { fallbackAdapter, selectAdapter, type FrameworkAdapter } from "./adapter.ts";
+import { combineAdapters, type FrameworkAdapter } from "./adapter.ts";
 import { extractImports } from "./extract.ts";
 import { computeFan } from "./graph.ts";
 import { Resolver } from "./resolve.ts";
@@ -26,7 +26,7 @@ export { readParseResult, writeParseResult, checkInvariants } from "./io.ts";
 export { fallbackAdapter, type FrameworkAdapter } from "./adapter.ts";
 
 export interface ParseOptions extends WalkOptions {
-  /** Tried in order; the fallback is used when none detects the repository. */
+  /** Every one that detects the repository applies; earlier ones win a disputed file. */
   adapters?: readonly FrameworkAdapter[];
 }
 
@@ -115,9 +115,8 @@ export function parseRepository(directory: string, options: ParseOptions = {}): 
   }
 
   const ctx = { root: walk.root, files: nodePaths, packageJsons: walk.packageJsons };
-  const adapter = selectAdapter([...(options.adapters ?? []), fallbackAdapter], ctx);
-  const entries = new Map(adapter.entryPoints(ctx).map((e) => [e.path, e.reason]));
-  const roles = new Map(adapter.roles(ctx).map((r) => [r.path, r.role]));
+  const adapter = combineAdapters(options.adapters ?? [], ctx);
+  const { entries, roles } = adapter;
   const fan = computeFan(nodePaths, edges);
 
   const files: FileNode[] = walk.files

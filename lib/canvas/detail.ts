@@ -4,6 +4,7 @@
 
 import type { FileNode } from "../parser/contract.ts";
 import { CATEGORIES, categoryOf, type Category } from "./categories.ts";
+import { walk } from "./graph.ts";
 import type { Model } from "./view.ts";
 
 const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -36,17 +37,7 @@ export function neighboursOf(model: Model): Neighbours {
 
 /** How many distinct files `start` reaches by following imports, itself excluded. */
 export function reachFrom(start: string, imports: Neighbours["imports"]): number {
-  const seen = new Set([start]);
-  const stack = [start];
-  while (stack.length > 0) {
-    for (const next of imports.get(stack.pop()!)!) {
-      if (!seen.has(next)) {
-        seen.add(next);
-        stack.push(next);
-      }
-    }
-  }
-  return seen.size - 1;
+  return walk(start, imports, Infinity).reduce((n, level) => n + level.length, 0);
 }
 
 export interface StartingPoint {

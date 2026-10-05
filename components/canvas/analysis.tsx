@@ -11,8 +11,10 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
+import type { Category } from "@/lib/canvas/categories";
 import { neighboursOf, summarize, type Neighbours, type RepositorySummary } from "@/lib/canvas/detail";
 import { foldRepository } from "@/lib/canvas/fold";
+import { findInsights, type Insights } from "@/lib/canvas/insights";
 import { buildModel, buildView, groupUnit, rowUnit, type Model, type UnitId, type View } from "@/lib/canvas/view";
 import type { Edge, FileNode } from "@/lib/parser/contract";
 
@@ -27,6 +29,10 @@ interface AnalysisState {
   model: Model;
   neighbours: Neighbours;
   summary: RepositorySummary;
+  insights: Insights;
+  /** The rail's picked category: the map dims every file outside it. */
+  category: Category | null;
+  setCategory: Dispatch<SetStateAction<Category | null>>;
   /** Folders open as panels. */
   open: ReadonlySet<string>;
   setOpen: Dispatch<SetStateAction<ReadonlySet<string>>>;
@@ -76,6 +82,8 @@ export function Analysis({
   const model = useMemo(() => buildModel(files, edges, foldRepository(files)), [files, edges]);
   const neighbours = useMemo(() => neighboursOf(model), [model]);
   const summary = useMemo(() => summarize(model, neighbours, adapter), [model, neighbours, adapter]);
+  const insights = useMemo(() => findInsights(model, neighbours), [model, neighbours]);
+  const [category, setCategory] = useState<Category | null>(null);
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   const [scroll, setScroll] = useState<ReadonlyMap<string, number>>(() => new Map());
   const view = useMemo(() => buildView(model, open, repository, scroll), [model, open, repository, scroll]);
@@ -101,6 +109,9 @@ export function Analysis({
       model,
       neighbours,
       summary,
+      insights,
+      category,
+      setCategory,
       open,
       setOpen,
       scroll,
@@ -114,7 +125,7 @@ export function Analysis({
       focusDir,
       registerMap,
     }),
-    [repository, model, neighbours, summary, open, scroll, view, selected, hovered, focusFile, focusDir, registerMap],
+    [repository, model, neighbours, summary, insights, category, open, scroll, view, selected, hovered, focusFile, focusDir, registerMap],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

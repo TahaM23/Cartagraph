@@ -158,6 +158,7 @@ export const ParseResult = z.object({
   /** Absolute path that was parsed. */
   root: z.string(),
   generatedAt: z.iso.datetime(),
+  /** The framework adapters that applied, comma-separated, or "fallback" when none did. */
   adapter: z.string(),
   files: z.array(FileNode),
   edges: z.array(Edge),

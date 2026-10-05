@@ -1,8 +1,8 @@
 {
   "version": 1,
   "root": "/Users/taha/Desktop/excalidraw",
-  "generatedAt": "2026-10-05T16:46:20.315Z",
-  "adapter": "fallback",
+  "generatedAt": "2026-10-05T18:00:30.822Z",
+  "adapter": "next, docusaurus, vite",
   "files": [
     {
       "path": ".lintstagedrc.js",
@@ -50,7 +50,7 @@
       "fanOut": 0,
       "fanIn": 0,
       "entry": null,
-      "role": null
+      "role": "Docusaurus config"
     },
     {
       "path": "dev-docs/sidebars.js",
@@ -66,7 +66,7 @@
       "fanOut": 0,
       "fanIn": 0,
       "entry": null,
-      "role": null
+      "role": "Docusaurus config"
     },
     {
       "path": "dev-docs/src/components/Highlight.js",
@@ -146,7 +146,7 @@
       "fanOut": 0,
       "fanIn": 0,
       "entry": null,
-      "role": null
+      "role": "page"
     },
     {
       "path": "dev-docs/src/theme/MDXComponents.js",
@@ -162,7 +162,7 @@
       "fanOut": 0,
       "fanIn": 0,
       "entry": null,
-      "role": null
+      "role": "theme component"
     },
     {
       "path": "dev-docs/src/theme/ReactLiveScope/index.js",
@@ -178,7 +178,7 @@
       "fanOut": 0,
       "fanIn": 0,
       "entry": null,
-      "role": null
+      "role": "theme component"
     },
     {
       "path": "examples/with-nextjs/next.config.js",
@@ -194,7 +194,7 @@
       "fanOut": 0,
       "fanIn": 0,
       "entry": null,
-      "role": null
+      "role": "Next.js config"
     },
     {
       "path": "examples/with-nextjs/src/app/layout.tsx",
@@ -210,7 +210,7 @@
       "fanOut": 0,
       "fanIn": 0,
       "entry": null,
-      "role": null
+      "role": "layout"
     },
     {
       "path": "examples/with-nextjs/src/app/page.tsx",
@@ -226,7 +226,7 @@
       "fanOut": 1,
       "fanIn": 0,
       "entry": null,
-      "role": null
+      "role": "page"
     },
     {
       "path": "examples/with-nextjs/src/excalidrawWrapper.tsx",
@@ -258,7 +258,7 @@
       "fanOut": 1,
       "fanIn": 0,
       "entry": null,
-      "role": null
+      "role": "page"
     },
     {
       "path": "examples/with-script-in-browser/components/CustomFooter.tsx",
@@ -337,7 +337,7 @@
       "skipDetail": null,
       "fanOut": 2,
       "fanIn": 0,
-      "entry": null,
+      "entry": "examples/with-script-in-browser/index.html <script type=\"module\">",
       "role": null
     },
     {
@@ -929,7 +929,7 @@
       "skipDetail": null,
       "fanOut": 2,
       "fanIn": 0,
-      "entry": null,
+      "entry": "excalidraw-app/index.html <script type=\"module\">",
       "role": null
     },
     {

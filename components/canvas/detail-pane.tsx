@@ -3,15 +3,19 @@
 import { useId, useState, type ReactNode } from "react";
 import { CATEGORY_LABELS, categoryOf } from "@/lib/canvas/categories";
 import { summarizeFolder } from "@/lib/canvas/detail";
+import { walk, WALK_DEPTH } from "@/lib/canvas/graph";
+import { INSIGHT_SENTENCES, type Loop } from "@/lib/canvas/insights";
 import { groupUnit, rowUnit } from "@/lib/canvas/view";
 import { useAnalysis } from "./analysis";
 import { CategoryLabel } from "./category-label";
 import { SWATCH } from "./swatch";
 
 type Tab = "structure" | "explanation";
+/** Which transitive walk a file's Structure tab shows, if any. */
+type Reach = "blast" | "chain" | null;
 
-/** How many starting points show before "show all". */
-const STARTING_POINTS = 8;
+/** How many rows a long list shows before "show all". */
+const CAPPED_ROWS = 8;
 
 // Fixed locale: the server and the browser must print the same digits.
 const count = new Intl.NumberFormat("en-US");
@@ -24,17 +28,19 @@ function size(bytes: number) {
 
 /**
  * The right-hand column. With nothing selected it summarises the repository;
- * with a file or folder selected it describes that. The open tab is held here,
- * above the selection, so it survives the selection changing.
+ * with a file or folder selected it describes that. The open tab, and which
+ * walk is showing, are held here, above the selection, so they survive the
+ * selection changing.
  */
 export function DetailPane() {
   const { selected, hover } = useAnalysis();
   const [tab, setTab] = useState<Tab>("structure");
+  const [reach, setReach] = useState<Reach>(null);
 
   return (
     <div className="flex min-h-full flex-col text-[13px]" onPointerLeave={() => hover(null)}>
       {selected?.startsWith("f:") ? (
-        <FileDetail path={selected.slice(2)} tab={tab} setTab={setTab} />
+        <FileDetail path={selected.slice(2)} tab={tab} setTab={setTab} reach={reach} setReach={setReach} />
       ) : selected?.startsWith("g:") ? (
         <FolderDetail dir={selected.slice(2)} tab={tab} setTab={setTab} />
       ) : (
@@ -46,8 +52,6 @@ export function DetailPane() {
 
 function RepositorySummary() {
   const { repository, summary } = useAnalysis();
-  const [allStarts, setAllStarts] = useState(false);
-  const starts = allStarts ? summary.startingPoints : summary.startingPoints.slice(0, STARTING_POINTS);
 
   return (
     <>
@@ -86,35 +90,147 @@ function RepositorySummary() {
         rows={summary.startingPoints.length}
         empty="Every file is imported by something."
       >
-        {starts.map(({ file, reach }) => (
-          <PathRow
-            key={file.path}
-            path={file.path}
-            trailing={<Fan n={reach} tone="outgoing" label="files reached through imports" />}
-          />
-        ))}
-        {summary.startingPoints.length > STARTING_POINTS && (
-          <li>
-            <button
-              type="button"
-              onClick={() => setAllStarts((v) => !v)}
-              className="w-full px-4 py-1 text-left text-accent hover:underline"
-            >
-              {allStarts ? "Show fewer" : `Show all ${count.format(summary.startingPoints.length)}`}
-            </button>
-          </li>
-        )}
+        <Capped
+          items={summary.startingPoints}
+          row={({ file, reach }) => (
+            <PathRow
+              key={file.path}
+              path={file.path}
+              trailing={<Fan n={reach} tone="outgoing" label="files reached through imports" />}
+            />
+          )}
+        />
       </Section>
 
       <p className="px-4 py-3 text-muted-foreground">
         <span className="font-mono text-foreground tabular-nums">{count.format(summary.unidentified)}</span> of{" "}
         {plural(summary.files, "file")} matched no framework convention.
       </p>
+
+      <InsightsPanel />
     </>
   );
 }
 
-function FileDetail({ path, tab, setTab }: { path: string; tab: Tab; setTab: (t: Tab) => void }) {
+/**
+ * Facts about the edge list, collapsed until asked for and last in the pane:
+ * this explains a codebase, it does not grade one. Files nothing imports
+ * lead because they explain; cycles and long files read closer to a verdict.
+ */
+function InsightsPanel() {
+  const { insights } = useAnalysis();
+  const [open, setOpen] = useState(false);
+  const id = useId();
+
+  return (
+    <section className="border-t border-border">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-1.5 px-4 py-2.5 text-left font-medium hover:bg-muted"
+      >
+        <span aria-hidden="true" className={`inline-block w-3 text-muted-foreground ${open ? "rotate-90" : ""}`}>
+          ›
+        </span>
+        Insights
+      </button>
+      {open && (
+        <div id={id}>
+          <Section
+            title={INSIGHT_SENTENCES.unimported}
+            total={insights.unimported.length}
+            hint="Pages, routes, entry points, tests, config and scripts are left out: something other than an import reaches them."
+            rows={insights.unimported.length}
+            empty="None."
+          >
+            <Capped items={insights.unimported} row={(f) => <PathRow key={f.path} path={f.path} />} />
+          </Section>
+          <Section
+            title={INSIGHT_SENTENCES.unusualFanIn}
+            total={insights.unusualFanIn.length}
+            hint={`Imported by more than ${count.format(insights.fanInThreshold)} files.`}
+            rows={insights.unusualFanIn.length}
+            empty="None."
+          >
+            <Capped
+              items={insights.unusualFanIn}
+              row={(f) => <PathRow key={f.path} path={f.path} trailing={<Fan n={f.fanIn} tone="incoming" label="importers" />} />}
+            />
+          </Section>
+          <Section
+            title={INSIGHT_SENTENCES.cycles}
+            total={insights.cycles.length}
+            hint="The shortest loop through each group of files that can all reach one another."
+            rows={insights.cycles.length}
+            empty="None."
+          >
+            {insights.cycles.map((loop) => (
+              <LoopRows key={loop.files[0]} loop={loop} />
+            ))}
+          </Section>
+          <Section
+            title={INSIGHT_SENTENCES.long}
+            total={insights.long.length}
+            rows={insights.long.length}
+            empty="None."
+          >
+            <Capped
+              items={insights.long}
+              row={(f) => (
+                <PathRow
+                  key={f.path}
+                  path={f.path}
+                  trailing={
+                    <span className="font-mono text-muted-foreground tabular-nums" title={plural(f.lines, "line")}>
+                      {count.format(f.lines)}
+                    </span>
+                  }
+                />
+              )}
+            />
+          </Section>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** One loop, in import order: each file imports the one below it, and the last imports the first. */
+function LoopRows({ loop }: { loop: Loop }) {
+  const first = loop.files[0];
+  return (
+    <li className="pb-1.5">
+      <p
+        className="px-4 pt-1 text-[12px] text-muted-foreground tabular-nums"
+        title="Every file in the group can reach every other through imports"
+      >
+        {plural(loop.files.length, "file")} in the loop · {plural(loop.members, "file")} in the group
+      </p>
+      <ul>
+        {loop.files.map((p) => (
+          <PathRow key={p} path={p} trailing={<span aria-hidden="true" className="text-outgoing">↓</span>} />
+        ))}
+        <PathRow path={first} trailing={<span className="text-[11px] text-faint-foreground">back to the first</span>} />
+      </ul>
+    </li>
+  );
+}
+
+function FileDetail({
+  path,
+  tab,
+  setTab,
+  reach,
+  setReach,
+}: {
+  path: string;
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  reach: Reach;
+  setReach: (r: Reach) => void;
+}) {
   const { model, neighbours, focusFile, focusDir, hover } = useAnalysis();
   const file = model.files.get(path)!;
   const imports = neighbours.imports.get(path)!;
@@ -183,6 +299,24 @@ function FileDetail({ path, tab, setTab }: { path: string; tab: Tab; setTab: (t:
               <Stat label="Imported by" value={count.format(importedBy.length)} tone="incoming" />
             </dl>
 
+            <div className="flex gap-2 border-b border-border px-4 py-2.5">
+              <ReachButton
+                label="Blast radius"
+                title="Everything that breaks if this file changes: what imports it, and what imports those"
+                tone="incoming"
+                on={reach === "blast"}
+                onClick={() => setReach(reach === "blast" ? null : "blast")}
+              />
+              <ReachButton
+                label="Dependency chain"
+                title="Everything this file needs: what it imports, and what those import"
+                tone="outgoing"
+                on={reach === "chain"}
+                onClick={() => setReach(reach === "chain" ? null : "chain")}
+              />
+            </div>
+            {reach !== null && <ReachList key={path} path={path} reach={reach} />}
+
             <Section title="Imports" total={imports.length} tone="outgoing" rows={imports.length} empty="Imports nothing inside the repository.">
               {imports.map((p) => (
                 <PathRow key={p} path={p} />
@@ -198,6 +332,77 @@ function FileDetail({ path, tab, setTab }: { path: string; tab: Tab; setTab: (t:
           <Explanation subject="file" />
         )}
       </Tabs>
+    </>
+  );
+}
+
+function ReachButton({
+  label,
+  title,
+  tone,
+  on,
+  onClick,
+}: {
+  label: string;
+  title: string;
+  tone: Tone;
+  on: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      title={title}
+      onClick={onClick}
+      className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 ${
+        on ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      <span aria-hidden="true" className={`size-1.5 rounded-full ${TONE_BG[tone]}`} />
+      {label}
+    </button>
+  );
+}
+
+/**
+ * A file's blast radius or dependency chain: one walk over the edge list, in
+ * whichever direction, two levels out. Arithmetic over what the browser
+ * already holds, so it is here the moment the button is pressed.
+ */
+function ReachList({ path, reach }: { path: string; reach: "blast" | "chain" }) {
+  const { neighbours } = useAnalysis();
+  const levels = walk(path, reach === "blast" ? neighbours.importedBy : neighbours.imports, WALK_DEPTH);
+  const total = levels.reduce((n, l) => n + l.length, 0);
+  const tone: Tone = reach === "blast" ? "incoming" : "outgoing";
+
+  return (
+    <>
+      <p className="border-b border-border px-4 py-2 text-muted-foreground">
+        {reach === "blast" ? (
+          <>
+            <span className={`font-mono tabular-nums ${TONE_TEXT[tone]}`}>{count.format(total)}</span>{" "}
+            {total === 1 ? "file" : "files"} within {WALK_DEPTH} levels {total === 1 ? "depends" : "depend"} on this one.
+          </>
+        ) : (
+          <>
+            This file needs <span className={`font-mono tabular-nums ${TONE_TEXT[tone]}`}>{plural(total, "file")}</span>{" "}
+            within {WALK_DEPTH} levels.
+          </>
+        )}
+      </p>
+      {levels.map((files, i) => (
+        <Section
+          key={i}
+          title={i === 0 ? (reach === "blast" ? "Imports this directly" : "Imported directly") : `${i + 1} levels out`}
+          total={files.length}
+          tone={tone}
+          rows={files.length}
+          empty=""
+        >
+          <Capped items={files} row={(p) => <PathRow key={p} path={p} />} />
+        </Section>
+      ))}
     </>
   );
 }
@@ -347,6 +552,27 @@ function Section({
         <ul className="mt-1">{children}</ul>
       )}
     </section>
+  );
+}
+
+/** A long list's first rows, with a button for the rest. */
+function Capped<T>({ items, row }: { items: readonly T[]; row: (item: T) => ReactNode }) {
+  const [all, setAll] = useState(false);
+  return (
+    <>
+      {(all ? items : items.slice(0, CAPPED_ROWS)).map(row)}
+      {items.length > CAPPED_ROWS && (
+        <li>
+          <button
+            type="button"
+            onClick={() => setAll((v) => !v)}
+            className="w-full px-4 py-1 text-left text-accent hover:underline"
+          >
+            {all ? "Show fewer" : `Show all ${count.format(items.length)}`}
+          </button>
+        </li>
+      )}
+    </>
   );
 }
 

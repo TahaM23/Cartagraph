@@ -11,6 +11,9 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import type { ParseResult } from "./contract.ts";
 import { distinctPairs } from "./graph.ts";
+import { docusaurusAdapter } from "./adapters/docusaurus.ts";
+import { nextAdapter } from "./adapters/next.ts";
+import { viteAdapter } from "./adapters/vite.ts";
 import { parseRepository } from "./index.ts";
 import { readParseResult, writeParseResult } from "./io.ts";
 
@@ -169,7 +172,7 @@ function main() {
   }
 
   const started = performance.now();
-  const result = parseRepository(directory);
+  const result = parseRepository(directory, { adapters: [nextAdapter, docusaurusAdapter, viteAdapter] });
   const elapsed = Math.round(performance.now() - started);
   report(result, values.all);
   console.log(`\nparsed in ${elapsed} ms`);
