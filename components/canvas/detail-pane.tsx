@@ -5,6 +5,7 @@ import { CATEGORY_LABELS, categoryOf } from "@/lib/canvas/categories";
 import { summarizeFolder } from "@/lib/canvas/detail";
 import { groupUnit, rowUnit } from "@/lib/canvas/view";
 import { useAnalysis } from "./analysis";
+import { CategoryLabel } from "./category-label";
 import { SWATCH } from "./swatch";
 
 type Tab = "structure" | "explanation";
@@ -140,8 +141,7 @@ function FileDetail({ path, tab, setTab }: { path: string; tab: Tab; setTab: (t:
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 border-b border-border px-4 py-3">
               <dt className="text-muted-foreground">Kind</dt>
               <dd className="flex items-center gap-1.5">
-                <span aria-hidden="true" className={`size-2 shrink-0 rounded-[2px] ${SWATCH[category]}`} />
-                {CATEGORY_LABELS[category]}
+                <CategoryLabel category={category} />
                 {file.role && <span className="text-muted-foreground">· {file.role}</span>}
               </dd>
               {file.entry && (
@@ -219,8 +219,7 @@ function FolderDetail({ dir, tab, setTab }: { dir: string; tab: Tab; setTab: (t:
             <ul className="border-b border-border px-4 py-2">
               {folder.kinds.map(({ category, files }) => (
                 <li key={category} className="flex items-center gap-2 py-0.5">
-                  <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-[3px] ${SWATCH[category]}`} />
-                  <span className="flex-1">{CATEGORY_LABELS[category]}</span>
+                  <CategoryLabel category={category} className="flex-1" />
                   <span className="font-mono text-muted-foreground tabular-nums">{count.format(files.length)}</span>
                 </li>
               ))}

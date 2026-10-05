@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { CATEGORY_LABELS, type Category } from "@/lib/canvas/categories";
-import { SWATCH } from "./swatch";
+import type { Category } from "@/lib/canvas/categories";
+import { CategoryLabel } from "./category-label";
 
 // The analysis view's three columns: a narrow rail, the map, a detail pane.
 // This arrangement is settled. Later phases fill the columns; they do not move
@@ -41,11 +41,7 @@ export function AnalysisShell({
               key={category}
               className="flex items-center gap-2.5 px-3 py-1 text-[13px]"
             >
-              <span
-                aria-hidden="true"
-                className={`size-2.5 shrink-0 rounded-[3px] ${SWATCH[category]}`}
-              />
-              <span className="flex-1 truncate">{CATEGORY_LABELS[category]}</span>
+              <CategoryLabel category={category} className="flex-1 truncate" />
               <span className="font-mono text-muted-foreground tabular-nums">
                 {files}
               </span>
