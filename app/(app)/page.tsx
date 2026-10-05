@@ -1,5 +1,4 @@
 import { auth } from "@clerk/nextjs/server";
-import Link from "next/link";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 // The active organization's analyses. The query has no organization filter on
@@ -7,24 +6,12 @@ import { createServerSupabase } from "@/lib/supabase/server";
 // decides which rows come back. Switching organization changes the token, not
 // this code. If another organization's row ever shows up here, the bug is the
 // policy.
-export default async function DashboardPage() {
-  const { orgId, sessionClaims } = await auth();
-
-  if (!orgId) {
-    return (
-      <div className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6">
-        <p className="text-sm text-muted-foreground">
-          No active organization. Pick one from the switcher above.
-        </p>
-      </div>
-    );
-  }
-
+async function loadAnalyses() {
   const supabase = await createServerSupabase();
-  const { data: analyses, error } = await supabase
+  const { data, error } = await supabase
     .from("analyses")
     .select(
-      "id, status, commit_sha, files_total, files_parsed, edge_count, error, created_at, started_at, finished_at, project:projects(repo_owner, repo_name)",
+      "id, status, commit_sha, error, created_at, finished_at, project:projects(repo_owner, repo_name)",
     )
     .order("created_at", { ascending: false });
 
@@ -32,156 +19,156 @@ export default async function DashboardPage() {
   // are different answers.
   if (error) throw new Error(`Loading analyses failed: ${error.message}`);
 
+  // Relative times are measured from the moment the rows were read.
+  return { analyses: data, readAt: Date.now() };
+}
+
+const STATES = ["parsing", "queued", "complete", "failed"] as const;
+
+export default async function DashboardPage() {
+  const { orgId, sessionClaims } = await auth();
+
+  if (!orgId) {
+    return (
+      <p className="px-4 py-6 text-muted-foreground sm:px-5">
+        No active organization. Pick one from the switcher above.
+      </p>
+    );
+  }
+
+  const { analyses, readAt } = await loadAnalyses();
+  const counts = STATES.map(
+    (s) => [s, analyses.filter((a) => a.status === s).length] as const,
+  ).filter(([, n]) => n > 0);
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-      <div className="flex items-baseline justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">Analyses</h1>
-          <p className="text-xs text-muted-foreground">
+    <div className="flex flex-1 flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-4 py-3 sm:px-5">
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-base font-semibold">
             {sessionClaims?.org_name ?? orgId}
-          </p>
+          </h1>
+          <span className="text-muted-foreground">
+            {analyses.length === 1 ? "1 analysis" : `${analyses.length} analyses`}
+          </span>
         </div>
-        <Link
-          href="/organization/organization-members"
-          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Members &amp; invitations
-        </Link>
+        {counts.length > 0 && (
+          <ul className="flex flex-wrap items-center gap-x-5 gap-y-1 text-muted-foreground">
+            {counts.map(([state, n]) => (
+              <li key={state} className="flex items-center gap-2">
+                <StateGlyph state={state} />
+                {n} {state}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {analyses.length === 0 ? (
-        <div className="mt-6 rounded-md border border-dashed border-border px-6 py-12 text-center">
-          <p className="text-sm font-medium">No analyses yet</p>
-          <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-            When someone in this organization maps a repository, it appears
-            here for everyone in the organization.
+        <div className="px-4 py-16 text-center sm:px-5">
+          <p className="font-medium">No analyses yet</p>
+          <p className="mx-auto mt-1 max-w-[52ch] text-muted-foreground">
+            When someone on this team analyses a repository, it shows up here
+            for everyone on the team.
           </p>
         </div>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-border bg-muted text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium">Repository</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Commit</th>
-                <th className="px-3 py-2 text-right font-medium">Files</th>
-                <th className="px-3 py-2 text-right font-medium">Edges</th>
-                <th className="px-3 py-2 text-right font-medium">Started</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {analyses.map((a) => (
-                <tr key={a.id} className="align-top">
-                  <td className="px-3 py-2">
+        <table className="w-full text-left">
+          <thead className="text-muted-foreground">
+            <tr className="border-b border-border">
+              <th scope="col" className="px-4 py-2.5 font-normal sm:pl-5">Repository</th>
+              <th scope="col" className="w-36 px-4 py-2.5 font-normal">State</th>
+              <th scope="col" className="hidden w-32 px-4 py-2.5 font-normal md:table-cell">Commit</th>
+              <th scope="col" className="hidden w-28 px-4 py-2.5 text-right font-normal sm:table-cell">Started</th>
+              <th scope="col" className="hidden w-28 px-4 py-2.5 text-right font-normal sm:table-cell sm:pr-5">Finished</th>
+            </tr>
+          </thead>
+          <tbody>
+            {analyses.map((a) => (
+              <tr key={a.id} className="border-b border-border align-top">
+                <td className="px-4 py-2.5 sm:pl-5">
+                  {a.project ? (
                     <span className="font-mono">
-                      {a.project
-                        ? `${a.project.repo_owner}/${a.project.repo_name}`
-                        : "—"}
+                      <span className="text-muted-foreground">
+                        {a.project.repo_owner}/
+                      </span>
+                      {a.project.repo_name}
                     </span>
-                    {a.error && (
-                      <p className="mt-0.5 text-muted-foreground">{a.error}</p>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <Status
-                      status={a.status}
-                      parsed={a.files_parsed}
-                      total={a.files_total}
-                      startedAt={a.started_at}
-                      finishedAt={a.finished_at}
-                    />
-                  </td>
-                  <td className="px-3 py-2 font-mono text-muted-foreground">
-                    {a.commit_sha?.slice(0, 7) ?? "—"}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">
-                    {a.files_total == null
-                      ? "—"
-                      : a.status === "complete"
-                        ? `${fmt(a.files_parsed)}/${fmt(a.files_total)}`
-                        : fmt(a.files_total)}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono tabular-nums">
-                    {a.edge_count == null ? "—" : fmt(a.edge_count)}
-                  </td>
-                  <td
-                    className="px-3 py-2 text-right whitespace-nowrap text-muted-foreground"
-                    title={a.created_at}
-                  >
-                    <time dateTime={a.created_at}>{stamp(a.created_at)}</time>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  ) : (
+                    <span className="text-faint-foreground">unknown repository</span>
+                  )}
+                  {a.error && (
+                    <p className="mt-0.5 text-muted-foreground">{a.error}</p>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 whitespace-nowrap">
+                  <span className="flex items-center gap-2">
+                    <StateGlyph state={a.status} />
+                    {a.status}
+                  </span>
+                </td>
+                <td className="hidden px-4 py-2.5 font-mono text-muted-foreground md:table-cell">
+                  {a.commit_sha?.slice(0, 7) ?? <Dash />}
+                </td>
+                <td className="hidden px-4 py-2.5 text-right whitespace-nowrap text-muted-foreground sm:table-cell">
+                  <Ago iso={a.created_at} from={readAt} />
+                </td>
+                <td className="hidden px-4 py-2.5 text-right whitespace-nowrap text-muted-foreground sm:table-cell sm:pr-5">
+                  {a.finished_at ? <Ago iso={a.finished_at} from={readAt} /> : <Dash />}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
 }
 
-function Status({
-  status,
-  parsed,
-  total,
-  startedAt,
-  finishedAt,
-}: {
-  status: string;
-  parsed: number | null;
-  total: number | null;
-  startedAt: string | null;
-  finishedAt: string | null;
-}) {
-  if (status === "parsing" && total) {
-    return (
-      <span>
-        Parsing{" "}
-        <span className="font-mono tabular-nums text-muted-foreground">
-          {fmt(parsed ?? 0)}/{fmt(total)}
-        </span>
-      </span>
-    );
-  }
-  if (status === "complete" && startedAt && finishedAt) {
-    return (
-      <span>
-        Complete{" "}
-        <span className="font-mono tabular-nums text-muted-foreground">
-          {duration(startedAt, finishedAt)}
-        </span>
-      </span>
-    );
-  }
-  const label: Record<string, string> = {
-    queued: "Queued",
-    parsing: "Parsing",
-    complete: "Complete",
-    failed: "Failed",
-  };
-  return <span>{label[status] ?? status}</span>;
+// States are told apart by shape, not colour: filled when done, half while
+// parsing, hollow while waiting, a crossed circle when it failed.
+function StateGlyph({ state }: { state: string }) {
+  return (
+    <svg viewBox="0 0 12 12" className="size-3 shrink-0" aria-hidden="true">
+      {state === "complete" && (
+        <circle cx="6" cy="6" r="5.5" className="fill-muted-foreground" />
+      )}
+      {state === "parsing" && (
+        <>
+          <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M6 1a5 5 0 0 0 0 10z" fill="currentColor" />
+        </>
+      )}
+      {state === "queued" && (
+        <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      )}
+      {state === "failed" && (
+        <>
+          <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M4 4l4 4M8 4l-4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </>
+      )}
+    </svg>
+  );
 }
 
-const number = new Intl.NumberFormat("en");
-function fmt(n: number | null) {
-  return n == null ? "—" : number.format(n);
+function Dash() {
+  return <span className="text-faint-foreground">—</span>;
 }
 
-function duration(from: string, to: string) {
-  const s = Math.max(0, Math.round((Date.parse(to) - Date.parse(from)) / 1000));
-  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
-}
-
-// Rendered on the server, so pinned to UTC rather than the server's zone.
-const timestamp = new Intl.DateTimeFormat("en", {
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-  timeZone: "UTC",
-});
-function stamp(iso: string) {
-  return `${timestamp.format(new Date(iso))} UTC`;
+function Ago({ iso, from }: { iso: string; from: number }) {
+  const s = Math.max(0, Math.round((from - Date.parse(iso)) / 1000));
+  const text =
+    s < 60
+      ? "just now"
+      : s < 3600
+        ? `${Math.floor(s / 60)}m ago`
+        : s < 86400
+          ? `${Math.floor(s / 3600)}h ago`
+          : `${Math.floor(s / 86400)}d ago`;
+  return (
+    <time dateTime={iso} title={iso}>
+      {text}
+    </time>
+  );
 }

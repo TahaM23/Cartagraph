@@ -11,12 +11,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex h-14 items-center justify-between gap-4 border-b border-border px-4 sm:px-6">
+      <header className="flex h-14 items-center justify-between gap-4 border-b border-border px-4 sm:px-5">
         <div className="flex items-center gap-3">
-          <Link href="/" className="text-base font-semibold tracking-tight">
-            Cartograph
+          <Link href="/" className="font-mono font-semibold">
+            cartograph
           </Link>
-          <span className="text-muted-foreground">/</span>
+          <span className="text-faint-foreground">/</span>
           <OrganizationSwitcher
             hidePersonal
             organizationProfileMode="navigation"

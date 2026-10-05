@@ -15,41 +15,86 @@
   }
 }
 
+/*
+ * Colour carries meaning or it isn't there. Accent is for selection and
+ * anything interactive; incoming and outgoing are edge direction; the cat-*
+ * hues are the kind of file. Everything else is greyscale.
+ */
 :root {
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --border: rgb(0 0 0 / 0.08);
+  --background: #fafafa;
+  --surface: #ffffff;
+  --foreground: #18181b;
+  --muted: #f1f1f2;
+  --muted-foreground: #6b6b73;
+  --faint-foreground: #a1a1a8;
+  --border: rgb(0 0 0 / 0.09);
+  --accent: #2f6fde;
+  --incoming: #2f9e62;
+  --outgoing: #d08a1c;
+  --cat-source: #6d5bd0;
+  --cat-test: #c94f7c;
+  --cat-types: #1b8fa6;
+  --cat-config: #7f7a2e;
+  --cat-script: #a8573a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --background: #0a0a0a;
-    --foreground: #ededed;
-    --muted: #18181b;
-    --muted-foreground: #a1a1aa;
-    --border: rgb(255 255 255 / 0.145);
+    --surface: #111213;
+    --foreground: #ececee;
+    --muted: #1a1a1d;
+    --muted-foreground: #9d9da6;
+    --faint-foreground: #5f5f67;
+    --border: rgb(255 255 255 / 0.1);
+    --accent: #5b8ef0;
+    --incoming: #45b97a;
+    --outgoing: #e0a03a;
+    --cat-source: #9a8cf0;
+    --cat-test: #e57aa2;
+    --cat-types: #4cb8cc;
+    --cat-config: #b5ae5a;
+    --cat-script: #d0825f;
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
   --background: #0a0a0a;
-  --foreground: #ededed;
-  --muted: #18181b;
-  --muted-foreground: #a1a1aa;
-  --border: rgb(255 255 255 / 0.145);
+  --surface: #111213;
+  --foreground: #ececee;
+  --muted: #1a1a1d;
+  --muted-foreground: #9d9da6;
+  --faint-foreground: #5f5f67;
+  --border: rgb(255 255 255 / 0.1);
+  --accent: #5b8ef0;
+  --incoming: #45b97a;
+  --outgoing: #e0a03a;
+  --cat-source: #9a8cf0;
+  --cat-test: #e57aa2;
+  --cat-types: #4cb8cc;
+  --cat-config: #b5ae5a;
+  --cat-script: #d0825f;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-faint-foreground: var(--faint-foreground);
   --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-incoming: var(--incoming);
+  --color-outgoing: var(--outgoing);
+  --color-cat-source: var(--cat-source);
+  --color-cat-test: var(--cat-test);
+  --color-cat-types: var(--cat-types);
+  --color-cat-config: var(--cat-config);
+  --color-cat-script: var(--cat-script);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -57,4 +102,12 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Interactive things share one focus treatment, in the accent. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
