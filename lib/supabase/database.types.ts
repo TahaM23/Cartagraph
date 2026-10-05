@@ -1,0 +1,471 @@
+// Generated from the database schema (Supabase `generate_typescript_types`),
+// with the generated helper types reduced to `Tables` below. Regenerate after
+// each migration.
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.18"
+  }
+  public: {
+    Tables: {
+      analyses: {
+        Row: {
+          commit_sha: string | null
+          coverage: Json | null
+          created_at: string
+          created_by: string | null
+          edge_count: number | null
+          error: string | null
+          files_parsed: number | null
+          files_total: number | null
+          finished_at: string | null
+          id: string
+          org_id: string
+          project_id: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          commit_sha?: string | null
+          coverage?: Json | null
+          created_at?: string
+          created_by?: string | null
+          edge_count?: number | null
+          error?: string | null
+          files_parsed?: number | null
+          files_total?: number | null
+          finished_at?: string | null
+          id?: string
+          org_id: string
+          project_id: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          commit_sha?: string | null
+          coverage?: Json | null
+          created_at?: string
+          created_by?: string | null
+          edge_count?: number | null
+          error?: string | null
+          files_parsed?: number | null
+          files_total?: number | null
+          finished_at?: string | null
+          id?: string
+          org_id?: string
+          project_id?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyses_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analyses_project_id_org_id_fkey"
+            columns: ["project_id", "org_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "org_id"]
+          },
+        ]
+      }
+      edges: {
+        Row: {
+          analysis_id: string
+          id: number
+          kind: string
+          org_id: string
+          source_file_id: string
+          specifier: string
+          target_file_id: string
+          type_only: boolean
+        }
+        Insert: {
+          analysis_id: string
+          id?: never
+          kind: string
+          org_id: string
+          source_file_id: string
+          specifier: string
+          target_file_id: string
+          type_only?: boolean
+        }
+        Update: {
+          analysis_id?: string
+          id?: never
+          kind?: string
+          org_id?: string
+          source_file_id?: string
+          specifier?: string
+          target_file_id?: string
+          type_only?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edges_analysis_id_org_id_fkey"
+            columns: ["analysis_id", "org_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id", "org_id"]
+          },
+          {
+            foreignKeyName: "edges_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edges_source_file_id_analysis_id_fkey"
+            columns: ["source_file_id", "analysis_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id", "analysis_id"]
+          },
+          {
+            foreignKeyName: "edges_target_file_id_analysis_id_fkey"
+            columns: ["target_file_id", "analysis_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id", "analysis_id"]
+          },
+        ]
+      }
+      explanations: {
+        Row: {
+          analysis_id: string
+          body: string
+          cache_key: string
+          created_at: string
+          file_id: string
+          id: string
+          model: string
+          org_id: string
+        }
+        Insert: {
+          analysis_id: string
+          body: string
+          cache_key: string
+          created_at?: string
+          file_id: string
+          id?: string
+          model: string
+          org_id: string
+        }
+        Update: {
+          analysis_id?: string
+          body?: string
+          cache_key?: string
+          created_at?: string
+          file_id?: string
+          id?: string
+          model?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "explanations_analysis_id_org_id_fkey"
+            columns: ["analysis_id", "org_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id", "org_id"]
+          },
+          {
+            foreignKeyName: "explanations_file_id_analysis_id_fkey"
+            columns: ["file_id", "analysis_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id", "analysis_id"]
+          },
+          {
+            foreignKeyName: "explanations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_roles: {
+        Row: {
+          analysis_id: string
+          file_id: string
+          id: string
+          org_id: string
+          role: string
+          source: string
+        }
+        Insert: {
+          analysis_id: string
+          file_id: string
+          id?: string
+          org_id: string
+          role: string
+          source: string
+        }
+        Update: {
+          analysis_id?: string
+          file_id?: string
+          id?: string
+          org_id?: string
+          role?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_roles_analysis_id_org_id_fkey"
+            columns: ["analysis_id", "org_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id", "org_id"]
+          },
+          {
+            foreignKeyName: "file_roles_file_id_analysis_id_fkey"
+            columns: ["file_id", "analysis_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id", "analysis_id"]
+          },
+          {
+            foreignKeyName: "file_roles_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      files: {
+        Row: {
+          analysis_id: string
+          fan_in: number
+          fan_out: number
+          id: string
+          org_id: string
+          parsed: boolean
+          path: string
+          skip_reason: string | null
+        }
+        Insert: {
+          analysis_id: string
+          fan_in?: number
+          fan_out?: number
+          id?: string
+          org_id: string
+          parsed?: boolean
+          path: string
+          skip_reason?: string | null
+        }
+        Update: {
+          analysis_id?: string
+          fan_in?: number
+          fan_out?: number
+          id?: string
+          org_id?: string
+          parsed?: boolean
+          path?: string
+          skip_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_analysis_id_org_id_fkey"
+            columns: ["analysis_id", "org_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id", "org_id"]
+          },
+          {
+            foreignKeyName: "files_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      insights: {
+        Row: {
+          analysis_id: string
+          created_at: string
+          detail: Json
+          file_id: string | null
+          id: string
+          kind: string
+          org_id: string
+        }
+        Insert: {
+          analysis_id: string
+          created_at?: string
+          detail?: Json
+          file_id?: string | null
+          id?: string
+          kind: string
+          org_id: string
+        }
+        Update: {
+          analysis_id?: string
+          created_at?: string
+          detail?: Json
+          file_id?: string | null
+          id?: string
+          kind?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insights_analysis_id_org_id_fkey"
+            columns: ["analysis_id", "org_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id", "org_id"]
+          },
+          {
+            foreignKeyName: "insights_file_id_analysis_id_fkey"
+            columns: ["file_id", "analysis_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id", "analysis_id"]
+          },
+          {
+            foreignKeyName: "insights_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          id: string
+          org_id: string
+          repo_name: string
+          repo_owner: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          org_id: string
+          repo_name: string
+          repo_owner: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          org_id?: string
+          repo_name?: string
+          repo_owner?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routes: {
+        Row: {
+          analysis_id: string
+          file_id: string
+          id: string
+          method: string
+          org_id: string
+          path: string
+        }
+        Insert: {
+          analysis_id: string
+          file_id: string
+          id?: string
+          method: string
+          org_id: string
+          path: string
+        }
+        Update: {
+          analysis_id?: string
+          file_id?: string
+          id?: string
+          method?: string
+          org_id?: string
+          path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_analysis_id_org_id_fkey"
+            columns: ["analysis_id", "org_id"]
+            isOneToOne: false
+            referencedRelation: "analyses"
+            referencedColumns: ["id", "org_id"]
+          },
+          {
+            foreignKeyName: "routes_file_id_analysis_id_fkey"
+            columns: ["file_id", "analysis_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id", "analysis_id"]
+          },
+          {
+            foreignKeyName: "routes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  T extends keyof DefaultSchema["Tables"],
+> = DefaultSchema["Tables"][T]["Row"]
