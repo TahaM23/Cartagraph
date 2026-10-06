@@ -378,7 +378,9 @@ export class Resolver {
 
     let chain: LoadedConfig[];
     const configPath = ["tsconfig.json", "jsconfig.json"]
-      .map((name) => path.join(absDir, name))
+      // The directory is the repository being parsed, known only at run time;
+      // without this the bundler traces this whole project into the server build.
+      .map((name) => path.join(/*turbopackIgnore: true*/ absDir, name))
       .find((p) => this.isFile(p));
 
     if (configPath) {
@@ -406,7 +408,7 @@ export class Resolver {
 
     const problems: string[] = [];
     const read = ts.readConfigFile(configPath, ts.sys.readFile);
-    if (read.error) problems.push(flatten(read.error));
+    if (read.error) problems.push(this.describe(read.error));
 
     const host: ts.ParseConfigHost = {
       useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames,
@@ -422,7 +424,7 @@ export class Resolver {
       configPath,
     );
     for (const error of parsed.errors) {
-      if (!IGNORED_CONFIG_ERRORS.has(error.code)) problems.push(flatten(error));
+      if (!IGNORED_CONFIG_ERRORS.has(error.code)) problems.push(this.describe(error));
     }
 
     const options = normalize(parsed.options);
@@ -495,6 +497,11 @@ export class Resolver {
   private display(abs: string): string {
     const rel = toRelative(this.root, abs);
     return rel.startsWith("..") ? abs : rel;
+  }
+
+  /** TypeScript's message, with paths inside the root made relative like every other path. */
+  private describe(diagnostic: ts.Diagnostic): string {
+    return flatten(diagnostic).split(`${this.root}${path.sep}`).join("");
   }
 }
 

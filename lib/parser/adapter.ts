@@ -3,6 +3,8 @@
 // knows, and the fallback knows nothing.
 
 import path from "node:path";
+import type ts from "typescript";
+import type { Route } from "./contract.ts";
 import type { PackageJson } from "./walk.ts";
 
 export interface RepoContext {
@@ -10,6 +12,10 @@ export interface RepoContext {
   /** Every file node's path, POSIX, relative to root. */
   files: ReadonlySet<string>;
   packageJsons: readonly PackageJson[];
+  /** A parsed file's text, or null when the file was skipped. Cheap: check it before asking for syntax. */
+  text(path: string): string | null;
+  /** A parsed file's syntax tree, or null when the file was skipped. Parsed on first ask. */
+  syntax(path: string): ts.SourceFile | null;
 }
 
 export interface EntryPoint {
@@ -30,6 +36,51 @@ export interface FrameworkAdapter {
   entryPoints(ctx: RepoContext): EntryPoint[];
   /** Roles this framework's conventions assign to files. */
   roles(ctx: RepoContext): RoleAssignment[];
+  /**
+   * HTTP routes whose method and full pattern the syntax states outright.
+   * Where either would have to be guessed, the route is left out.
+   */
+  routes(ctx: RepoContext): Route[];
+}
+
+/** Whether a package.json lists `name` among its dependencies of any kind. */
+export function dependsOn(json: Record<string, unknown>, name: string): boolean {
+  return ["dependencies", "devDependencies", "peerDependencies"].some((field) => {
+    const deps = json[field];
+    return typeof deps === "object" && deps !== null && name in deps;
+  });
+}
+
+/** `path` relative to `dir`, or null when it is not inside it. */
+export function within(dir: string, path: string): string | null {
+  if (dir === ".") return path;
+  return path.startsWith(`${dir}/`) ? path.slice(dir.length + 1) : null;
+}
+
+/**
+ * Where a framework applies: the packages that depend on it (on any of
+ * `dependency`, when it names several packages). A file belongs
+ * to the nearest one above it, so a monorepo with one app on the framework
+ * gets that app's files and nobody else's. Returns that package's directory
+ * and the file's path inside it, or null for a file in none of them.
+ */
+export function ownerBy(
+  ctx: RepoContext,
+  dependency: string | readonly string[],
+): (path: string) => { dir: string; rel: string } | null {
+  const names = typeof dependency === "string" ? [dependency] : dependency;
+  // Deepest first, so a file belongs to the nearest package above it.
+  const dirs = ctx.packageJsons
+    .filter((pkg) => names.some((name) => dependsOn(pkg.json, name)))
+    .map((pkg) => pkg.dir)
+    .sort((a, b) => b.length - a.length);
+  return (path) => {
+    for (const dir of dirs) {
+      const rel = within(dir, path);
+      if (rel !== null) return { dir, rel };
+    }
+    return null;
+  };
 }
 
 const ENTRY_FIELDS = ["main", "module", "browser", "types", "typings", "source"] as const;
@@ -75,12 +126,32 @@ export const fallbackAdapter: FrameworkAdapter = {
     return [...entries].map(([p, reason]) => ({ path: p, reason }));
   },
   roles: () => [],
+  routes: () => [],
 };
 
-/** The first adapter that detects the repository; the fallback always does. */
-export function selectAdapter(
+const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/**
+ * The one adapter that applies: detection runs in the order given and the
+ * first match wins, so the same repository always reads as the same
+ * framework. When none matches, the fallback applies and the repository
+ * still renders, with generic roles and no routes. The fallback's
+ * package.json entry points apply either way: every JavaScript package has
+ * them, whatever its framework.
+ */
+export function applyAdapter(
   adapters: readonly FrameworkAdapter[],
   ctx: RepoContext,
-): FrameworkAdapter {
-  return adapters.find((a) => a.detect(ctx)) ?? fallbackAdapter;
+): { name: string; entries: Map<string, string>; roles: Map<string, string>; routes: Route[] } {
+  const selected = adapters.find((a) => a !== fallbackAdapter && a.detect(ctx)) ?? fallbackAdapter;
+  const entries = new Map<string, string>();
+  for (const adapter of selected === fallbackAdapter ? [fallbackAdapter] : [fallbackAdapter, selected]) {
+    for (const e of adapter.entryPoints(ctx)) if (!entries.has(e.path)) entries.set(e.path, e.reason);
+  }
+  const roles = new Map<string, string>();
+  for (const r of selected.roles(ctx)) if (!roles.has(r.path)) roles.set(r.path, r.role);
+  const routes = selected
+    .routes(ctx)
+    .sort((a, b) => byString(a.path, b.path) || byString(a.method, b.method) || byString(a.file, b.file) || a.line - b.line);
+  return { name: selected.name, entries, roles, routes };
 }

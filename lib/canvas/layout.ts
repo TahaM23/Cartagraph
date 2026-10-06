@@ -39,6 +39,14 @@ const LOOP_ROOM = 56;
 export const nodeMeta = (box: Box) => `${box.files.length} files · ${box.fanIn} in`;
 export const panelMeta = (box: Box) =>
   `${box.files.length} files · ${box.fanIn} in · ${box.fanOut} out`;
+/**
+ * The meta lines while a rail category is picked: how many of the box's files
+ * are in it. Boxes are always sized to fit these as well, so picking a
+ * category never moves anything on the map.
+ */
+export const nodeMatchMeta = (box: Box, matched: number) => `${matched} of ${box.files.length} match`;
+export const panelMatchMeta = (box: Box, matched: number) =>
+  `${nodeMatchMeta(box, matched)} · ${box.fanIn} in · ${box.fanOut} out`;
 export const moreText = (box: Box) => `${box.hidden} more`;
 export const aboveText = (box: Box) => `${box.above} above`;
 
@@ -47,7 +55,13 @@ function sizeOf(box: Box, labels: Map<UnitId, string>): { w: number; h: number }
   const label = labels.get(groupUnit(box.dir))!;
   if (!box.open) {
     return {
-      w: Math.max(textWidth(label, LABEL_PX), textWidth(nodeMeta(box), META_PX)) + 2 * PAD_X,
+      w:
+        Math.max(
+          textWidth(label, LABEL_PX),
+          textWidth(nodeMeta(box), META_PX),
+          textWidth(nodeMatchMeta(box, box.files.length), META_PX),
+        ) +
+        2 * PAD_X,
       h: Math.round(NODE_MIN_H + NODE_H_PER_DOUBLING * Math.log2(1 + box.fanIn)),
     };
   }
@@ -57,7 +71,14 @@ function sizeOf(box: Box, labels: Map<UnitId, string>): { w: number; h: number }
   );
   const rows = (box.above > 0 ? 1 : 0) + box.rows.length + (box.hidden > 0 ? 1 : 0);
   return {
-    w: Math.max(textWidth(label, LABEL_PX), textWidth(panelMeta(box), META_PX), rowWidth) + 2 * PAD_X,
+    w:
+      Math.max(
+        textWidth(label, LABEL_PX),
+        textWidth(panelMeta(box), META_PX),
+        textWidth(panelMatchMeta(box, box.files.length), META_PX),
+        rowWidth,
+      ) +
+      2 * PAD_X,
     h: HEADER_H + rows * ROW_H + PANEL_PAD_B,
   };
 }

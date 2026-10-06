@@ -1,7 +1,7 @@
-import type { Category } from "@/lib/canvas/categories";
+import type { Kind } from "@/lib/canvas/categories";
 
 // Tailwind only sees class names written out in full.
-export const SWATCH: Record<Category, string> = {
+export const SWATCH: Record<Kind, string> = {
   source: "bg-cat-source",
   test: "bg-cat-test",
   types: "bg-cat-types",

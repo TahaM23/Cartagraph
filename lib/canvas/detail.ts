@@ -2,8 +2,9 @@
 // browser. Pure arithmetic over files and edges: nothing here fetches, so
 // selecting something costs no request.
 
-import type { FileNode } from "../parser/contract.ts";
-import { CATEGORIES, categoryOf, type Category } from "./categories.ts";
+import type { FileNode, Route } from "../parser/contract.ts";
+import { kindOf, type Category, type Rail } from "./categories.ts";
+import { walk } from "./graph.ts";
 import type { Model } from "./view.ts";
 
 const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -36,17 +37,7 @@ export function neighboursOf(model: Model): Neighbours {
 
 /** How many distinct files `start` reaches by following imports, itself excluded. */
 export function reachFrom(start: string, imports: Neighbours["imports"]): number {
-  const seen = new Set([start]);
-  const stack = [start];
-  while (stack.length > 0) {
-    for (const next of imports.get(stack.pop()!)!) {
-      if (!seen.has(next)) {
-        seen.add(next);
-        stack.push(next);
-      }
-    }
-  }
-  return seen.size - 1;
+  return walk(start, imports, Infinity).reduce((n, level) => n + level.length, 0);
 }
 
 export interface StartingPoint {
@@ -59,9 +50,9 @@ export interface RepositorySummary {
   files: number;
   /** Distinct file-to-file imports inside the repository. */
   imports: number;
-  /** Routes recovered by a framework adapter; null when nothing could recover them. */
-  routes: number | null;
-  /** The adapter's name, or null when only the fallback applied. */
+  /** Routes a framework adapter recovered exactly. */
+  routes: number;
+  /** The framework's name, or null when no adapter applied. */
   framework: string | null;
   /** Imported by at least one file, most importers first. */
   mostDepended: FileNode[];
@@ -74,17 +65,20 @@ export interface RepositorySummary {
 /** How many of the most depended-on files the summary lists. */
 export const MOST_DEPENDED = 10;
 
-const startRank = (f: FileNode) => (f.entry !== null ? 0 : categoryOf(f) === "source" ? 1 : 2);
+const startRank = (f: FileNode) => (f.entry !== null ? 0 : kindOf(f) === "source" ? 1 : 2);
 
-export function summarize(model: Model, neighbours: Neighbours, adapter: string): RepositorySummary {
+export function summarize(
+  model: Model,
+  neighbours: Neighbours,
+  rail: Rail,
+  routes: readonly Route[],
+): RepositorySummary {
   const files = [...model.files.values()];
   return {
     files: files.length,
     imports: model.pairs.length,
-    // The parse result carries no routes yet. Nothing approximates them: a
-    // wrong route is the same failure as an invented edge.
-    routes: null,
-    framework: adapter === "fallback" ? null : adapter,
+    routes: routes.length,
+    framework: rail.framework,
     mostDepended: files
       .filter((f) => f.fanIn > 0)
       .sort((a, b) => b.fanIn - a.fanIn || byString(a.path, b.path))
@@ -107,21 +101,21 @@ export interface FolderSummary {
   files: number;
   fanIn: number;
   fanOut: number;
-  /** Every kind present, in the fixed category order, with its files by path. */
+  /** Every rail category present, in the rail's order, with its files by path. */
   kinds: { category: Category; files: string[] }[];
 }
 
-export function summarizeFolder(model: Model, dir: string): FolderSummary {
+export function summarizeFolder(model: Model, dir: string, rail: Rail): FolderSummary {
   const paths = model.fold.groups.get(dir)!;
-  const byKind = new Map<Category, string[]>();
+  const byKind = new Map<string, string[]>();
   for (const p of paths) {
-    const c = categoryOf(model.files.get(p)!);
-    byKind.set(c, [...(byKind.get(c) ?? []), p]);
+    const id = rail.of(model.files.get(p)!).id;
+    byKind.set(id, [...(byKind.get(id) ?? []), p]);
   }
   return {
     dir,
     files: paths.length,
     ...model.groupFan.get(dir)!,
-    kinds: CATEGORIES.filter((c) => byKind.has(c)).map((c) => ({ category: c, files: byKind.get(c)! })),
+    kinds: rail.categories.filter((c) => byKind.has(c.id)).map((c) => ({ category: c, files: byKind.get(c.id)! })),
   };
 }

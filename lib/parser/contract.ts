@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 
-export const PARSE_RESULT_VERSION = 1;
+export const PARSE_RESULT_VERSION = 2;
 
 export const IMPORT_KINDS = ["import", "re_export", "dynamic_import"] as const;
 export const ImportKind = z.enum(IMPORT_KINDS);
@@ -111,6 +111,27 @@ export const ExcludedImport = ImportSite.extend({
 });
 export type ExcludedImport = z.infer<typeof ExcludedImport>;
 
+/** Methods a route can carry. Nothing broader: a handler for "all" has no single method to show. */
+export const HTTP_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
+export const HttpMethod = z.enum(HTTP_METHODS);
+export type HttpMethod = z.infer<typeof HttpMethod>;
+
+/**
+ * An HTTP route, emitted only when its method and its full pattern were both
+ * read off the syntax with nothing inferred. Anything less is left out: a
+ * wrong route is the same failure as an invented edge.
+ */
+export const Route = z.object({
+  method: HttpMethod,
+  /** The full pattern as the framework writes it, from the leading "/". */
+  path: z.string().startsWith("/"),
+  /** The file that declares the handler. */
+  file: z.string(),
+  /** Where the method is declared in that file. */
+  line: z.number().int().positive(),
+});
+export type Route = z.infer<typeof Route>;
+
 export const IgnoredPath = z.object({ path: z.string(), reason: IgnoreReason });
 export type IgnoredPath = z.infer<typeof IgnoredPath>;
 
@@ -158,8 +179,11 @@ export const ParseResult = z.object({
   /** Absolute path that was parsed. */
   root: z.string(),
   generatedAt: z.iso.datetime(),
+  /** The framework adapter that applied: the first in order to detect the repository, or "fallback". */
   adapter: z.string(),
   files: z.array(FileNode),
+  /** Sorted by path, then method. Empty when no adapter could recover one exactly. */
+  routes: z.array(Route),
   edges: z.array(Edge),
   unresolved: z.array(UnresolvedImport),
   excluded: z.array(ExcludedImport),

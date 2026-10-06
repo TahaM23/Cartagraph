@@ -52,6 +52,10 @@ export function checkInvariants(result: ParseResult): string[] {
     if (!parsed.has(site.source)) problems.push(`import site ${site.source} is not a parsed file`);
   }
 
+  for (const r of result.routes) {
+    if (!parsed.has(r.file)) problems.push(`route ${r.method} ${r.path} is declared in ${r.file}, which is not a parsed file`);
+  }
+
   const outcomes = imports.internal + imports.external + imports.excluded + imports.unresolved;
   if (imports.total !== outcomes) problems.push("import outcomes do not sum to total");
   if (imports.internal !== result.edges.length) problems.push("internal imports != edges");

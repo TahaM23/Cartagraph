@@ -11,6 +11,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import type { ParseResult } from "./contract.ts";
 import { distinctPairs } from "./graph.ts";
+import { ADAPTERS } from "./adapters/index.ts";
 import { parseRepository } from "./index.ts";
 import { readParseResult, writeParseResult } from "./io.ts";
 
@@ -139,6 +140,19 @@ function report(result: ParseResult, showAll: boolean) {
     for (const file of entries.slice(0, EXAMPLES_PER_REASON)) console.log(`    ${file.path}  — ${file.entry}`);
   }
 
+  const roles = groupBy(result.files.filter((file) => file.role), (file) => file.role!);
+  console.log(`\nROLES (${result.adapter} adapter)`);
+  if (roles.size === 0) console.log("  none: no framework convention matched");
+  for (const [role, files] of [...roles].sort((a, b) => b[1].length - a[1].length)) {
+    console.log(`  ${label(role, 28)}${pad(files.length, 6)}`);
+  }
+
+  console.log(`\nROUTES`);
+  if (result.routes.length === 0) console.log("  none recovered exactly");
+  const shownRoutes = showAll ? result.routes : result.routes.slice(0, 40);
+  for (const r of shownRoutes) console.log(`  ${r.method.padEnd(8)}${r.path}  — ${r.file}:${r.line}`);
+  if (shownRoutes.length < result.routes.length) console.log(`  … ${result.routes.length - shownRoutes.length} more (--all)`);
+
   console.log(`\nNOT HANDLED IN THIS VERSION`);
   console.log(`  require()    ${notHandled.require} calls seen, not turned into edges`);
 
@@ -169,7 +183,7 @@ function main() {
   }
 
   const started = performance.now();
-  const result = parseRepository(directory);
+  const result = parseRepository(directory, { adapters: ADAPTERS });
   const elapsed = Math.round(performance.now() - started);
   report(result, values.all);
   console.log(`\nparsed in ${elapsed} ms`);

@@ -1,6 +1,7 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
-import { CATEGORY_LABELS, type Category } from "@/lib/canvas/categories";
-import { SWATCH } from "./swatch";
+import type { Category } from "@/lib/canvas/categories";
+import { CategoryRail } from "./category-rail";
 
 // The analysis view's three columns: a narrow rail, the map, a detail pane.
 // This arrangement is settled. Later phases fill the columns; they do not move
@@ -12,12 +13,18 @@ export function AnalysisShell({
   repository,
   files,
   categories,
+  framework,
+  runHref,
   map,
   detail,
 }: {
   repository: string;
   files: number;
   categories: readonly { category: Category; files: number }[];
+  /** The framework whose categories the rail shows, or null for generic kinds only. */
+  framework: string | null;
+  /** Where this analysis's run is shown (and re-run from), for a stored analysis. */
+  runHref?: string;
   map?: ReactNode;
   detail?: ReactNode;
 }) {
@@ -31,27 +38,19 @@ export function AnalysisShell({
           <p className="truncate font-mono font-medium" title={repository}>
             {repository}
           </p>
-          <p className="text-muted-foreground">
+          <p className="flex items-baseline justify-between gap-2 text-muted-foreground">
             {files === 1 ? "1 file" : `${files} files`}
+            {runHref && (
+              <Link href={runHref} className="hover:text-accent">
+                Run details
+              </Link>
+            )}
           </p>
         </div>
-        <ul className="py-1.5">
-          {categories.map(({ category, files }) => (
-            <li
-              key={category}
-              className="flex items-center gap-2.5 px-3 py-1 text-[13px]"
-            >
-              <span
-                aria-hidden="true"
-                className={`size-2.5 shrink-0 rounded-[3px] ${SWATCH[category]}`}
-              />
-              <span className="flex-1 truncate">{CATEGORY_LABELS[category]}</span>
-              <span className="font-mono text-muted-foreground tabular-nums">
-                {files}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <p className="px-3 pt-2.5 text-[11px] tracking-wide text-faint-foreground uppercase">
+          {framework ?? "No framework detected"}
+        </p>
+        <CategoryRail categories={categories} />
       </nav>
 
       <section aria-label="Map" className="relative min-h-0 min-w-0 bg-surface">
