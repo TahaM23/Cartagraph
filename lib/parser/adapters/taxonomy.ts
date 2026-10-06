@@ -80,6 +80,17 @@ export const TAXONOMIES = {
       { label: "Next.js config", kind: "config", reached: true, roles: ["Next.js config"] },
     ],
   },
+  express: {
+    framework: "Express",
+    categories: [
+      { label: "Routers", kind: "source", reached: false, roles: ["router"] },
+      { label: "Controllers", kind: "source", reached: false, roles: ["controller"] },
+      { label: "Services", kind: "source", reached: false, roles: ["service"] },
+      { label: "Models", kind: "source", reached: false, roles: ["model"] },
+      { label: "Middleware", kind: "source", reached: false, roles: ["middleware"] },
+      { label: "Validators", kind: "source", reached: false, roles: ["validator"] },
+    ],
+  },
   docusaurus: {
     framework: "Docusaurus",
     categories: [

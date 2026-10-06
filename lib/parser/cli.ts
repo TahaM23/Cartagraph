@@ -56,7 +56,7 @@ function printReasons<T>(
 }
 
 function report(result: ParseResult, showAll: boolean) {
-  const { files: f, imports, notHandled, configs } = result.coverage;
+  const { files: f, imports, configs } = result.coverage;
   const folders = new Set(result.files.map((file) => file.folder));
   const packages = new Set(result.files.map((file) => file.package).filter((p) => p !== null));
 
@@ -153,8 +153,16 @@ function report(result: ParseResult, showAll: boolean) {
   for (const r of shownRoutes) console.log(`  ${r.method.padEnd(8)}${r.path}  — ${r.file}:${r.line}`);
   if (shownRoutes.length < result.routes.length) console.log(`  … ${result.routes.length - shownRoutes.length} more (--all)`);
 
-  console.log(`\nNOT HANDLED IN THIS VERSION`);
-  console.log(`  require()    ${notHandled.require} calls seen, not turned into edges`);
+  const commonjs = result.commonjsExports;
+  console.log(`\nCOMMONJS EXPORTS`);
+  if (commonjs.length === 0) console.log("  none: no file assigns to module.exports or exports");
+  else {
+    const names = commonjs.reduce((n, c) => n + c.names.length, 0);
+    console.log(`  ${label("modules")}${pad(commonjs.length, 6)}  export ${names} names between them`);
+    const shown = showAll ? commonjs : commonjs.slice(0, EXAMPLES_PER_REASON);
+    for (const c of shown) console.log(`    ${c.file}  — ${c.names.join(", ") || "(no names)"}`);
+    if (shown.length < commonjs.length) console.log(`    … ${commonjs.length - shown.length} more (--all)`);
+  }
 
   if (configs.length > 0) {
     console.log(`\nCONFIGS USED FOR RESOLUTION`);

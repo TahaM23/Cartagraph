@@ -5,9 +5,10 @@
 
 import { z } from "zod";
 
-export const PARSE_RESULT_VERSION = 2;
+export const PARSE_RESULT_VERSION = 3;
 
-export const IMPORT_KINDS = ["import", "re_export", "dynamic_import"] as const;
+/** `require` is a CommonJS `require("...")` call; the rest are ES module syntax. */
+export const IMPORT_KINDS = ["import", "re_export", "dynamic_import", "require"] as const;
 export const ImportKind = z.enum(IMPORT_KINDS);
 export type ImportKind = z.infer<typeof ImportKind>;
 
@@ -51,7 +52,7 @@ export const UnresolvedReason = z.enum([
   "alias-not-found", // matched a tsconfig `paths` alias; no file behind it
   "workspace-package-not-found", // names a package in this repo; no entry file found
   "subpath-import-not-found", // a `#` package import with no matching file
-  "non-literal-specifier", // dynamic import of something other than a string literal
+  "non-literal-specifier", // dynamic import or require() of something other than a string literal
   "case-mismatch", // matches a file only on a case-insensitive filesystem
 ]);
 export type UnresolvedReason = z.infer<typeof UnresolvedReason>;
@@ -132,6 +133,20 @@ export const Route = z.object({
 });
 export type Route = z.infer<typeof Route>;
 
+/**
+ * What a CommonJS module exports, read off its assignments: `exports.name = `,
+ * `module.exports.name = `, the keys of an object literal assigned to
+ * `module.exports`, and `Object.defineProperty(exports, "name", ...)`. Any
+ * other value assigned to `module.exports` is the module itself, which ES
+ * modules import as "default".
+ */
+export const CommonJsExports = z.object({
+  file: z.string(),
+  /** Sorted, distinct. Empty when the module assigns exports but names none. */
+  names: z.array(z.string()),
+});
+export type CommonJsExports = z.infer<typeof CommonJsExports>;
+
 export const IgnoredPath = z.object({ path: z.string(), reason: IgnoreReason });
 export type IgnoredPath = z.infer<typeof IgnoredPath>;
 
@@ -167,8 +182,6 @@ export const Coverage = z.object({
     /** How many imports name each external package. */
     externalPackages: z.record(z.string(), z.number().int().positive()),
   }),
-  /** Syntax seen but not handled in this version, so it is counted, not hidden. */
-  notHandled: z.object({ require: z.number().int().nonnegative() }),
   /** tsconfig/jsconfig files used for resolution, with any problems reading them. */
   configs: z.array(z.object({ path: z.string(), problems: z.array(z.string()) })),
 });
@@ -185,6 +198,8 @@ export const ParseResult = z.object({
   /** Sorted by path, then method. Empty when no adapter could recover one exactly. */
   routes: z.array(Route),
   edges: z.array(Edge),
+  /** Parsed files that export through `module.exports` or `exports`, sorted by path. */
+  commonjsExports: z.array(CommonJsExports),
   unresolved: z.array(UnresolvedImport),
   excluded: z.array(ExcludedImport),
   coverage: Coverage,
