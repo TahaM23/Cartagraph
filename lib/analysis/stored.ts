@@ -5,7 +5,7 @@
 // what comes back, as everywhere else.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { FileNode, type Edge } from "@/lib/parser/contract";
+import { FileNode, Route, type Edge } from "@/lib/parser/contract";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Db = SupabaseClient<Database>;
@@ -29,10 +29,11 @@ async function readAll<T>(
 export interface StoredGraph {
   files: FileNode[];
   edges: Pick<Edge, "source" | "target">[];
+  routes: Route[];
 }
 
 export async function loadStoredGraph(db: Db, analysisId: string): Promise<StoredGraph> {
-  const [fileRows, roleRows, edgeRows] = await Promise.all([
+  const [fileRows, roleRows, edgeRows, routeRows] = await Promise.all([
     readAll("files", (from, to) =>
       db
         .from("files")
@@ -48,6 +49,14 @@ export async function loadStoredGraph(db: Db, analysisId: string): Promise<Store
       db
         .from("edges")
         .select("source_file_id, target_file_id")
+        .eq("analysis_id", analysisId)
+        .order("id")
+        .range(from, to),
+    ),
+    readAll("routes", (from, to) =>
+      db
+        .from("routes")
+        .select("file_id, method, path, line")
         .eq("analysis_id", analysisId)
         .order("id")
         .range(from, to),
@@ -84,5 +93,15 @@ export async function loadStoredGraph(db: Db, analysisId: string): Promise<Store
     return { source, target };
   });
 
-  return { files, edges };
+  const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  const routes = routeRows
+    .map((r) => {
+      const file = paths.get(r.file_id);
+      if (!file) throw new Error(`Analysis ${analysisId} has a route in a file it does not have.`);
+      return Route.parse({ method: r.method, path: r.path, file, line: r.line });
+    })
+    // The order the parser wrote them in.
+    .sort((a, b) => byString(a.path, b.path) || byString(a.method, b.method) || byString(a.file, b.file) || a.line - b.line);
+
+  return { files, edges, routes };
 }

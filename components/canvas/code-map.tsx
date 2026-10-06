@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { CATEGORIES, categoryOf } from "@/lib/canvas/categories";
+import { KINDS, type Rail } from "@/lib/canvas/categories";
 import {
   arrange,
   edgePath,
@@ -108,6 +108,7 @@ export function CodeMap() {
     hover,
     registerMap,
     category,
+    rail,
   } = useAnalysis();
   const columns = useMemo(() => arrange(model), [model]);
   const layout = useMemo(() => place(columns, view), [columns, view]);
@@ -286,14 +287,14 @@ export function CodeMap() {
     for (const box of view.boxes) {
       let n = 0;
       for (const p of box.files) {
-        if (categoryOf(model.files.get(p)!) !== category) continue;
+        if (rail.of(model.files.get(p)!).id !== category) continue;
         n++;
         units.add(view.anchor.get(p)!);
       }
       perBox.set(box.dir, n);
     }
     return { perBox, units };
-  }, [category, view, model]);
+  }, [category, view, model, rail]);
   const outside = (unit: UnitId) => matching !== null && !matching.units.has(unit);
   const dim = (unit: UnitId) => ((related && !related.has(unit)) || outside(unit) ? DIM : "");
   // A hovered file lights whatever it is drawn as: its row, its folded node,
@@ -406,7 +407,7 @@ export function CodeMap() {
                 <span className="font-mono leading-tight text-muted-foreground" style={{ fontSize: META_PX }}>
                   {matching ? nodeMatchMeta(box, matching.perBox.get(box.dir)!) : nodeMeta(box)}
                 </span>
-                <CategoryBar files={box.files} model={model} />
+                <CategoryBar files={box.files} model={model} rail={rail} />
               </button>
             );
           }
@@ -467,7 +468,7 @@ export function CodeMap() {
                       isSelected ? "bg-accent/15 text-foreground" : "hover:bg-muted"
                     } ${hot(unit) ? HOT_ROW : ""} ${dim(unit)}`}
                   >
-                    <span aria-hidden="true" className={`size-2 shrink-0 rounded-[2px] ${SWATCH[categoryOf(file)]}`} />
+                    <span aria-hidden="true" className={`size-2 shrink-0 rounded-[2px] ${SWATCH[rail.of(file).kind]}`} />
                     <span className="flex-1">{view.labels.get(unit)}</span>
                     <span className="text-muted-foreground tabular-nums" title="Files that import this one">
                       {file.fanIn}
@@ -523,16 +524,16 @@ function MapButton({ label, onClick, children }: { label: string; onClick: () =>
   );
 }
 
-/** What a node is made of, by kind of file, as a strip along its bottom edge. */
-function CategoryBar({ files, model }: { files: string[]; model: Model }) {
+/** What a node is made of, by the colour of each file's category, as a strip along its bottom edge. */
+function CategoryBar({ files, model, rail }: { files: string[]; model: Model; rail: Rail }) {
   const counts = new Map<string, number>();
   for (const p of files) {
-    const c = categoryOf(model.files.get(p)!);
+    const c = rail.of(model.files.get(p)!).kind;
     counts.set(c, (counts.get(c) ?? 0) + 1);
   }
   return (
     <span aria-hidden="true" className="absolute inset-x-0 bottom-0 flex h-[3px]">
-      {CATEGORIES.filter((c) => counts.has(c)).map((c) => (
+      {KINDS.filter((c) => counts.has(c)).map((c) => (
         <span key={c} className={SWATCH[c]} style={{ flexGrow: counts.get(c) }} />
       ))}
     </span>

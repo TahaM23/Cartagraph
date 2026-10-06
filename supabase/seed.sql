@@ -71,9 +71,9 @@ select v.* from (values
 ) as v(org_id, analysis_id, source_file_id, target_file_id, kind, specifier)
 where not exists (select 1 from public.edges);
 
-insert into public.routes (id, org_id, analysis_id, file_id, method, path) values
-  ('a3000000-0000-4000-8000-000000000001', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'a2000000-0000-4000-8000-000000000001', 'GET', '/'),
-  ('b3000000-0000-4000-8000-000000000001', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'b2000000-0000-4000-8000-000000000003', 'GET', '/')
+insert into public.routes (id, org_id, analysis_id, file_id, method, path, line) values
+  ('a3000000-0000-4000-8000-000000000001', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'a2000000-0000-4000-8000-000000000001', 'GET', '/', 1),
+  ('b3000000-0000-4000-8000-000000000001', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'b2000000-0000-4000-8000-000000000003', 'GET', '/', 1)
 on conflict do nothing;
 
 insert into public.explanations (id, org_id, analysis_id, file_id, cache_key, model, body) values

@@ -447,6 +447,7 @@ export type Database = {
           analysis_id: string
           file_id: string
           id: string
+          line: number
           method: string
           org_id: string
           path: string
@@ -455,6 +456,7 @@ export type Database = {
           analysis_id: string
           file_id: string
           id?: string
+          line: number
           method: string
           org_id: string
           path: string
@@ -463,6 +465,7 @@ export type Database = {
           analysis_id?: string
           file_id?: string
           id?: string
+          line?: number
           method?: string
           org_id?: string
           path?: string

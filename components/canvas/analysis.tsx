@@ -11,12 +11,12 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import type { Category } from "@/lib/canvas/categories";
+import { railFor, type Rail } from "@/lib/canvas/categories";
 import { neighboursOf, summarize, type Neighbours, type RepositorySummary } from "@/lib/canvas/detail";
 import { foldRepository } from "@/lib/canvas/fold";
 import { findInsights, type Insights } from "@/lib/canvas/insights";
 import { buildModel, buildView, groupUnit, rowUnit, type Model, type UnitId, type View } from "@/lib/canvas/view";
-import type { Edge, FileNode } from "@/lib/parser/contract";
+import type { Edge, FileNode, Route } from "@/lib/parser/contract";
 
 /** What the map does when the pane asks it to show something. */
 export interface MapHandle {
@@ -30,9 +30,13 @@ interface AnalysisState {
   neighbours: Neighbours;
   summary: RepositorySummary;
   insights: Insights;
-  /** The rail's picked category: the map dims every file outside it. */
-  category: Category | null;
-  setCategory: Dispatch<SetStateAction<Category | null>>;
+  /** The framework's categories, and which one each file is counted in. */
+  rail: Rail;
+  /** Routes the adapter recovered exactly, by pattern. */
+  routes: readonly Route[];
+  /** The rail's picked category, by id: the map dims every file outside it. */
+  category: string | null;
+  setCategory: Dispatch<SetStateAction<string | null>>;
   /** Folders open as panels. */
   open: ReadonlySet<string>;
   setOpen: Dispatch<SetStateAction<ReadonlySet<string>>>;
@@ -69,21 +73,24 @@ export function useAnalysis(): AnalysisState {
 export function Analysis({
   files,
   edges,
+  routes,
   repository,
   adapter,
   children,
 }: {
   files: FileNode[];
   edges: Pick<Edge, "source" | "target">[];
+  routes: Route[];
   repository: string;
   adapter: string;
   children: ReactNode;
 }) {
   const model = useMemo(() => buildModel(files, edges, foldRepository(files)), [files, edges]);
   const neighbours = useMemo(() => neighboursOf(model), [model]);
-  const summary = useMemo(() => summarize(model, neighbours, adapter), [model, neighbours, adapter]);
+  const rail = useMemo(() => railFor(adapter), [adapter]);
+  const summary = useMemo(() => summarize(model, neighbours, rail, routes), [model, neighbours, rail, routes]);
   const insights = useMemo(() => findInsights(model, neighbours), [model, neighbours]);
-  const [category, setCategory] = useState<Category | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   const [scroll, setScroll] = useState<ReadonlyMap<string, number>>(() => new Map());
   const view = useMemo(() => buildView(model, open, repository, scroll), [model, open, repository, scroll]);
@@ -110,6 +117,8 @@ export function Analysis({
       neighbours,
       summary,
       insights,
+      rail,
+      routes,
       category,
       setCategory,
       open,
@@ -125,7 +134,7 @@ export function Analysis({
       focusDir,
       registerMap,
     }),
-    [repository, model, neighbours, summary, insights, category, open, scroll, view, selected, hovered, focusFile, focusDir, registerMap],
+    [repository, model, neighbours, summary, insights, rail, routes, category, open, scroll, view, selected, hovered, focusFile, focusDir, registerMap],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

@@ -54,6 +54,7 @@ async function dryRun(url: string) {
     console.log(`  files       ${files.found} found, ${files.parsed} parsed, ${files.skipped} skipped`);
     console.log(`  edges       ${result.edges.length}`);
     console.log(`  roles       ${result.files.filter((f) => f.role).length}`);
+    console.log(`  routes      ${result.routes.length}`);
     console.log(
       `  imports     ${imports.internal} of ${resolvable} non-external resolved (${percent(imports.internal, resolvable)}); ` +
         `${imports.unresolved} unresolved, ${imports.excluded} excluded`,

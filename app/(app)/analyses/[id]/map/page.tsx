@@ -5,7 +5,7 @@ import { CodeMap } from "@/components/canvas/code-map";
 import { DetailPane } from "@/components/canvas/detail-pane";
 import { AnalysisShell } from "@/components/canvas/shell";
 import { loadStoredGraph } from "@/lib/analysis/stored";
-import { countCategories } from "@/lib/canvas/categories";
+import { countCategories, railFor } from "@/lib/canvas/categories";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Map · Cartograph" };
@@ -28,17 +28,20 @@ export default async function AnalysisMapPage({ params }: PageProps<"/analyses/[
   if (!analysis) notFound();
   if (analysis.status !== "complete") redirect(`/analyses/${id}`);
 
-  const { files, edges } = await loadStoredGraph(supabase, id);
+  const { files, edges, routes } = await loadStoredGraph(supabase, id);
+  const adapter = analysis.adapter ?? "fallback";
+  const rail = railFor(adapter);
   const repository = analysis.project
     ? `${analysis.project.repo_owner}/${analysis.project.repo_name}`
     : "unknown repository";
 
   return (
-    <Analysis files={files} edges={edges} repository={repository} adapter={analysis.adapter ?? "fallback"}>
+    <Analysis files={files} edges={edges} routes={routes} repository={repository} adapter={adapter}>
       <AnalysisShell
         repository={repository}
         files={files.length}
-        categories={countCategories(files)}
+        categories={countCategories(files, rail)}
+        framework={rail.framework}
         runHref={`/analyses/${id}`}
         map={<CodeMap />}
         detail={<DetailPane />}

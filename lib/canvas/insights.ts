@@ -3,7 +3,7 @@
 // counts. They explain the shape of the repository; they do not grade it.
 
 import type { FileNode } from "../parser/contract.ts";
-import { categoryOf } from "./categories.ts";
+import { kindOf } from "./categories.ts";
 import type { Neighbours } from "./detail.ts";
 import { shortestLoop, stronglyConnected } from "./graph.ts";
 import type { Model } from "./view.ts";
@@ -55,7 +55,7 @@ const byPath = (a: FileNode, b: FileNode) => (a.path < b.path ? -1 : a.path > b.
  * that shows in the import graph, so no import is not evidence of no use.
  */
 export function reachedOtherwise(file: FileNode): boolean {
-  return file.entry !== null || file.role !== null || categoryOf(file) !== "source";
+  return file.entry !== null || file.role !== null || kindOf(file) !== "source";
 }
 
 /** Nearest-rank quantile of an ascending list. */

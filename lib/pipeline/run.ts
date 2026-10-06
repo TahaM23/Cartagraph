@@ -9,9 +9,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { docusaurusAdapter } from "../parser/adapters/docusaurus.ts";
-import { nextAdapter } from "../parser/adapters/next.ts";
-import { viteAdapter } from "../parser/adapters/vite.ts";
+import { ADAPTERS } from "../parser/adapters/index.ts";
 import { checkInvariants, parseWalk, ParseResult, walkRepository } from "../parser/index.ts";
 import type { AdminSupabase } from "../supabase/admin.ts";
 import type { Database } from "../supabase/database.types.ts";
@@ -21,8 +19,6 @@ import type { Stage } from "./stages.ts";
 
 /** More source files than this and the run stops rather than parse part of them. */
 export const MAX_SOURCE_FILES = 5000;
-
-const ADAPTERS = [nextAdapter, docusaurusAdapter, viteAdapter];
 
 const count = (n: number, one: string, many = `${one}s`) =>
   `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
@@ -127,7 +123,7 @@ export async function runAnalysis(db: AdminSupabase, id: string): Promise<void> 
 
     await report.stage(
       "store",
-      `Storing ${count(result.files.length, "file")} and ${count(result.edges.length, "edge")}`,
+      `Storing ${count(result.files.length, "file")}, ${count(result.edges.length, "edge")} and ${count(result.routes.length, "route")}`,
     );
     // Graph, coverage and the complete status land in one transaction.
     const { error } = await db.rpc("store_parse_result", {

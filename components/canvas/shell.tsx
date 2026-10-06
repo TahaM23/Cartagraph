@@ -13,6 +13,7 @@ export function AnalysisShell({
   repository,
   files,
   categories,
+  framework,
   runHref,
   map,
   detail,
@@ -20,6 +21,8 @@ export function AnalysisShell({
   repository: string;
   files: number;
   categories: readonly { category: Category; files: number }[];
+  /** The framework whose categories the rail shows, or null for generic kinds only. */
+  framework: string | null;
   /** Where this analysis's run is shown (and re-run from), for a stored analysis. */
   runHref?: string;
   map?: ReactNode;
@@ -44,6 +47,9 @@ export function AnalysisShell({
             )}
           </p>
         </div>
+        <p className="px-3 pt-2.5 text-[11px] tracking-wide text-faint-foreground uppercase">
+          {framework ?? "No framework detected"}
+        </p>
         <CategoryRail categories={categories} />
       </nav>
 

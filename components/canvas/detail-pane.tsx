@@ -1,11 +1,11 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
-import { CATEGORY_LABELS, categoryOf } from "@/lib/canvas/categories";
 import { summarizeFolder } from "@/lib/canvas/detail";
 import { walk, WALK_DEPTH } from "@/lib/canvas/graph";
 import { INSIGHT_SENTENCES, type Loop } from "@/lib/canvas/insights";
 import { groupUnit, rowUnit } from "@/lib/canvas/view";
+import type { Route } from "@/lib/parser/contract";
 import { useAnalysis } from "./analysis";
 import { CategoryLabel } from "./category-label";
 import { SWATCH } from "./swatch";
@@ -51,7 +51,7 @@ export function DetailPane() {
 }
 
 function RepositorySummary() {
-  const { repository, summary } = useAnalysis();
+  const { repository, summary, routes } = useAnalysis();
 
   return (
     <>
@@ -65,12 +65,18 @@ function RepositorySummary() {
       <dl className="grid grid-cols-3 border-b border-border">
         <Stat label="Files" value={count.format(summary.files)} />
         <Stat label="Imports" value={count.format(summary.imports)} title="Distinct file-to-file imports inside the repository" />
-        <Stat
-          label="Routes"
-          value={summary.routes === null ? "—" : count.format(summary.routes)}
-          title={summary.routes === null ? "No framework adapter recovered any routes" : undefined}
-        />
+        <Stat label="Routes" value={count.format(summary.routes)} title="Routes whose method and full pattern the code states" />
       </dl>
+
+      <Section
+        title="Routes"
+        total={routes.length}
+        hint="Only where the method and the full pattern are both written in the code. Anything that would have to be guessed is left out."
+        rows={routes.length}
+        empty={summary.framework ? `No ${summary.framework} route could be read exactly.` : "No framework adapter applied, so no routes."}
+      >
+        <Capped items={routes} row={(r) => <RouteRow key={`${r.method} ${r.path} ${r.file}:${r.line}`} route={r} />} />
+      </Section>
 
       <Section
         title="Most depended on"
@@ -231,11 +237,12 @@ function FileDetail({
   reach: Reach;
   setReach: (r: Reach) => void;
 }) {
-  const { model, neighbours, focusFile, focusDir, hover } = useAnalysis();
+  const { model, neighbours, rail, routes, focusFile, focusDir, hover } = useAnalysis();
   const file = model.files.get(path)!;
+  const declared = routes.filter((r) => r.file === path);
   const imports = neighbours.imports.get(path)!;
   const importedBy = neighbours.importedBy.get(path)!;
-  const category = categoryOf(file);
+  const category = rail.of(file);
   const name = path.slice(path.lastIndexOf("/") + 1);
   const group = model.fold.groupOf.get(path)!;
 
@@ -258,7 +265,9 @@ function FileDetail({
               <dt className="text-muted-foreground">Kind</dt>
               <dd className="flex items-center gap-1.5">
                 <CategoryLabel category={category} />
-                {file.role && <span className="text-muted-foreground">· {file.role}</span>}
+                {file.role && file.role.toLowerCase() !== category.label.toLowerCase() && (
+                  <span className="text-muted-foreground">· {file.role}</span>
+                )}
               </dd>
               {file.entry && (
                 <>
@@ -316,6 +325,14 @@ function FileDetail({
               />
             </div>
             {reach !== null && <ReachList key={path} path={path} reach={reach} />}
+
+            {declared.length > 0 && (
+              <Section title="Routes" total={declared.length} rows={declared.length} empty="">
+                {declared.map((r) => (
+                  <RouteRow key={`${r.method} ${r.path} ${r.line}`} route={r} />
+                ))}
+              </Section>
+            )}
 
             <Section title="Imports" total={imports.length} tone="outgoing" rows={imports.length} empty="Imports nothing inside the repository.">
               {imports.map((p) => (
@@ -408,8 +425,8 @@ function ReachList({ path, reach }: { path: string; reach: "blast" | "chain" }) 
 }
 
 function FolderDetail({ dir, tab, setTab }: { dir: string; tab: Tab; setTab: (t: Tab) => void }) {
-  const { repository, model } = useAnalysis();
-  const folder = summarizeFolder(model, dir);
+  const { repository, model, rail } = useAnalysis();
+  const folder = summarizeFolder(model, dir, rail);
 
   return (
     <>
@@ -423,14 +440,14 @@ function FolderDetail({ dir, tab, setTab }: { dir: string; tab: Tab; setTab: (t:
           <>
             <ul className="border-b border-border px-4 py-2">
               {folder.kinds.map(({ category, files }) => (
-                <li key={category} className="flex items-center gap-2 py-0.5">
+                <li key={category.id} className="flex items-center gap-2 py-0.5">
                   <CategoryLabel category={category} className="flex-1" />
                   <span className="font-mono text-muted-foreground tabular-nums">{count.format(files.length)}</span>
                 </li>
               ))}
             </ul>
             {folder.kinds.map(({ category, files }) => (
-              <Section key={category} title={CATEGORY_LABELS[category]} total={files.length} rows={files.length} empty="">
+              <Section key={category.id} title={category.label} total={files.length} rows={files.length} empty="">
                 {files.map((p) => (
                   <PathRow key={p} path={p} trailing={<Fan n={model.files.get(p)!.fanIn} tone="incoming" label="importers" />} />
                 ))}
@@ -589,7 +606,7 @@ function Fan({ n, tone, label }: { n: number; tone: Tone; label: string }) {
  * lights it on the map, and it lights when the map hovers whatever draws it.
  */
 function PathRow({ path, trailing }: { path: string; trailing?: ReactNode }) {
-  const { model, view, hovered, hover, focusFile } = useAnalysis();
+  const { model, view, rail, hovered, hover, focusFile } = useAnalysis();
   const file = model.files.get(path)!;
   const slash = path.lastIndexOf("/");
   const name = path.slice(slash + 1);
@@ -612,10 +629,41 @@ function PathRow({ path, trailing }: { path: string; trailing?: ReactNode }) {
           hot ? "bg-accent/15" : "hover:bg-muted"
         }`}
       >
-        <span aria-hidden="true" className={`size-2 shrink-0 rounded-[2px] ${SWATCH[categoryOf(file)]}`} />
+        <span aria-hidden="true" className={`size-2 shrink-0 rounded-[2px] ${SWATCH[rail.of(file).kind]}`} />
         <span className="shrink-0">{name}</span>
         <span className="min-w-0 flex-1 truncate text-faint-foreground">{dir}</span>
         {trailing}
+      </button>
+    </li>
+  );
+}
+
+/**
+ * One route: its method and full pattern as the code writes them, and where.
+ * Clicking it selects the declaring file, so the claim can be checked against
+ * the line it came from.
+ */
+function RouteRow({ route }: { route: Route }) {
+  const { hovered, hover, focusFile } = useAnalysis();
+  const where = `${route.file}:${route.line}`;
+  return (
+    <li>
+      <button
+        type="button"
+        title={`Declared at ${where}`}
+        onClick={() => {
+          hover(null);
+          focusFile(route.file);
+        }}
+        onPointerEnter={() => hover(rowUnit(route.file))}
+        onPointerLeave={() => hover(null)}
+        className={`grid w-full grid-cols-[4.25rem_minmax(0,1fr)] gap-x-2 px-4 py-[3px] text-left font-mono text-[12px] ${
+          hovered === rowUnit(route.file) ? "bg-accent/15" : "hover:bg-muted"
+        }`}
+      >
+        <span className="text-muted-foreground">{route.method}</span>
+        <span className="truncate">{route.path}</span>
+        <span className="col-start-2 truncate text-[11px] text-faint-foreground">{where}</span>
       </button>
     </li>
   );

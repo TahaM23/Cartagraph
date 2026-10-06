@@ -15,19 +15,20 @@ import {
   type ParseResult,
   type UnresolvedImport,
 } from "./contract.ts";
-import { combineAdapters, type FrameworkAdapter } from "./adapter.ts";
-import { extractImports } from "./extract.ts";
+import type ts from "typescript";
+import { applyAdapter, type FrameworkAdapter } from "./adapter.ts";
+import { extractImports, parseSyntax } from "./extract.ts";
 import { computeFan } from "./graph.ts";
 import { Resolver } from "./resolve.ts";
 import { walkRepository, type WalkOptions, type WalkResult } from "./walk.ts";
 
 export * from "./contract.ts";
 export { readParseResult, writeParseResult, checkInvariants } from "./io.ts";
-export { fallbackAdapter, type FrameworkAdapter } from "./adapter.ts";
+export { fallbackAdapter, type FrameworkAdapter, type RepoContext } from "./adapter.ts";
 export { walkRepository, type WalkResult } from "./walk.ts";
 
 export interface ParseOptions extends WalkOptions {
-  /** Every one that detects the repository applies; earlier ones win a disputed file. */
+  /** Tried in order; the first that detects the repository is the one that applies. */
   adapters?: readonly FrameworkAdapter[];
 }
 
@@ -119,8 +120,22 @@ export function parseWalk(walk: WalkResult, options: ParseOptions = {}): ParseRe
     }
   }
 
-  const ctx = { root: walk.root, files: nodePaths, packageJsons: walk.packageJsons };
-  const adapter = combineAdapters(options.adapters ?? [], ctx);
+  const texts = new Map(walk.files.filter((f) => !skips.has(f.path)).map((f) => [f.path, f.text ?? ""]));
+  const trees = new Map<string, ts.SourceFile>();
+  const ctx = {
+    root: walk.root,
+    files: nodePaths,
+    packageJsons: walk.packageJsons,
+    text: (path: string) => texts.get(path) ?? null,
+    syntax(path: string) {
+      const text = texts.get(path);
+      if (text === undefined) return null;
+      let tree = trees.get(path);
+      if (!tree) trees.set(path, (tree = parseSyntax(path, text)));
+      return tree;
+    },
+  };
+  const adapter = applyAdapter(options.adapters ?? [], ctx);
   const { entries, roles } = adapter;
   const fan = computeFan(nodePaths, edges);
 
@@ -158,6 +173,7 @@ export function parseWalk(walk: WalkResult, options: ParseOptions = {}): ParseRe
     generatedAt: new Date().toISOString(),
     adapter: adapter.name,
     files,
+    routes: adapter.routes,
     edges: edges.sort(bySite),
     unresolved: unresolved.sort(bySite),
     excluded: excluded.sort(bySite),

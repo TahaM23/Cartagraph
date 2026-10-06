@@ -3,11 +3,9 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
-  // Renders checked-in data only; see lib/preview.ts.
-  "/preview",
 ]);
 
-// Everything except the auth pages and the preview requires a session. Signed-out page
+// Everything except the auth pages requires a session. Signed-out page
 // requests are redirected to the sign-in URL here, before any route renders.
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) await auth.protect();
