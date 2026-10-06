@@ -6,6 +6,7 @@
 import {
   IMPORT_KINDS,
   PARSE_RESULT_VERSION,
+  type CommonJsExports,
   type Coverage,
   type Edge,
   type ExcludedImport,
@@ -54,6 +55,7 @@ export function parseWalk(walk: WalkResult, options: ParseOptions = {}): ParseRe
   const edges: Edge[] = [];
   const unresolved: UnresolvedImport[] = [];
   const excluded: ExcludedImport[] = [];
+  const commonjsExports: CommonJsExports[] = [];
   const skips = new Map<string, { reason: FileNode["skipReason"]; detail: string }>();
 
   const imports = {
@@ -67,7 +69,6 @@ export function parseWalk(walk: WalkResult, options: ParseOptions = {}): ParseRe
     unresolvedReasons: {},
     externalPackages: {} as Record<string, number>,
   } satisfies Coverage["imports"];
-  let requireCalls = 0;
 
   for (const file of walk.files) {
     if (file.skip) {
@@ -79,7 +80,7 @@ export function parseWalk(walk: WalkResult, options: ParseOptions = {}): ParseRe
       skips.set(file.path, { reason: "syntax-error", detail: extraction.syntaxError });
       continue;
     }
-    requireCalls += extraction.requireCalls;
+    if (extraction.commonjsExports) commonjsExports.push({ file: file.path, names: extraction.commonjsExports });
 
     for (const raw of extraction.imports) {
       const site = { source: file.path, line: raw.line, kind: raw.kind };
@@ -175,6 +176,7 @@ export function parseWalk(walk: WalkResult, options: ParseOptions = {}): ParseRe
     files,
     routes: adapter.routes,
     edges: edges.sort(bySite),
+    commonjsExports: commonjsExports.sort((a, b) => byString(a.file, b.file)),
     unresolved: unresolved.sort(bySite),
     excluded: excluded.sort(bySite),
     coverage: {
@@ -187,7 +189,6 @@ export function parseWalk(walk: WalkResult, options: ParseOptions = {}): ParseRe
         ignored: walk.ignored,
       },
       imports,
-      notHandled: { require: requireCalls },
       configs: resolver.configsUsed(),
     },
   };

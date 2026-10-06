@@ -1,5 +1,6 @@
-// Reading a file's imports with the TypeScript parser. Syntax only: nothing
-// here resolves a specifier or touches the filesystem.
+// Reading a file's imports, and what it exports through CommonJS, with the
+// TypeScript parser. Syntax only: nothing here resolves a specifier or
+// touches the filesystem.
 
 import ts from "typescript";
 import type { ImportKind } from "./contract.ts";
@@ -16,8 +17,11 @@ export interface RawImport {
 
 export interface Extraction {
   imports: RawImport[];
-  /** `require(...)` calls seen. Not edges in this version, but counted. */
-  requireCalls: number;
+  /**
+   * Names exported through `module.exports` or `exports`, sorted and distinct;
+   * null when the file assigns to neither.
+   */
+  commonjsExports: string[] | null;
   /** The first syntax error, when there is one. Imports are then incomplete. */
   syntaxError: string | null;
 }
@@ -35,6 +39,44 @@ function stringLiteral(node: ts.Node | undefined): string | null {
   }
   return null;
 }
+
+/** A property name as written, when it is one: `a`, `"a"`, `1`. Computed names are not. */
+function propertyName(name: ts.PropertyName): string | null {
+  return ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name) ? name.text : null;
+}
+
+const isIdentifierNamed = (node: ts.Node, text: string): boolean => ts.isIdentifier(node) && node.text === text;
+
+/** `module.exports`. */
+function isModuleExports(node: ts.Node): boolean {
+  return (
+    ts.isPropertyAccessExpression(node) &&
+    isIdentifierNamed(node.expression, "module") &&
+    node.name.text === "exports"
+  );
+}
+
+/** `exports` or `module.exports`: the object a CommonJS module's names hang off. */
+function isExportsObject(node: ts.Node): boolean {
+  return isIdentifierNamed(node, "exports") || isModuleExports(node);
+}
+
+/**
+ * For an assignment to `exports.name` or `exports["name"]` (on either exports
+ * object), the name, or null when it is computed. Undefined for any other target.
+ */
+function exportedMember(target: ts.Expression): { name: string | null } | undefined {
+  if (ts.isPropertyAccessExpression(target) && isExportsObject(target.expression)) {
+    return { name: ts.isIdentifier(target.name) ? target.name.text : null };
+  }
+  if (ts.isElementAccessExpression(target) && isExportsObject(target.expression)) {
+    return { name: stringLiteral(target.argumentExpression) };
+  }
+  return undefined;
+}
+
+/** Set by compiled ES modules to mark themselves; not a name anything imports. */
+const ES_MODULE_MARKER = "__esModule";
 
 function namedBindingsAllTypeOnly(
   elements: ts.NodeArray<ts.ImportSpecifier | ts.ExportSpecifier>,
@@ -59,13 +101,14 @@ export function extractImports(fileName: string, text: string): Extraction {
     const message = ts.flattenDiagnosticMessageText(first.messageText, " ");
     return {
       imports: [],
-      requireCalls: 0,
+      commonjsExports: null,
       syntaxError: `TS${first.code} at ${line + 1}:${character + 1}: ${message}`,
     };
   }
 
   const imports: RawImport[] = [];
-  let requireCalls = 0;
+  const exportNames = new Set<string>();
+  let assignsExports = false;
   const lineOf = (node: ts.Node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
 
   const add = (kind: ImportKind, node: ts.Node, specNode: ts.Node | undefined, typeOnly: boolean) => {
@@ -105,12 +148,39 @@ export function extractImports(fileName: string, text: string): Extraction {
     } else if (ts.isCallExpression(node)) {
       if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         add("dynamic_import", node, node.arguments[0], false);
+      } else if (isIdentifierNamed(node.expression, "require") && node.arguments.length === 1) {
+        add("require", node, node.arguments[0], false);
       } else if (
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === "require" &&
-        node.arguments.length === 1
+        ts.isPropertyAccessExpression(node.expression) &&
+        isIdentifierNamed(node.expression.expression, "Object") &&
+        node.expression.name.text === "defineProperty" &&
+        node.arguments.length >= 2 &&
+        isExportsObject(node.arguments[0])
       ) {
-        requireCalls++;
+        const name = stringLiteral(node.arguments[1]);
+        if (name !== ES_MODULE_MARKER) {
+          assignsExports = true;
+          if (name !== null) exportNames.add(name);
+        }
+      }
+    } else if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      if (isModuleExports(node.left)) {
+        assignsExports = true;
+        if (ts.isObjectLiteralExpression(node.right)) {
+          // A spread or computed key names something only running the code would show.
+          for (const property of node.right.properties) {
+            const name = property.name ? propertyName(property.name) : null;
+            if (name !== null) exportNames.add(name);
+          }
+        } else {
+          exportNames.add("default");
+        }
+      } else {
+        const member = exportedMember(node.left);
+        if (member && member.name !== ES_MODULE_MARKER) {
+          assignsExports = true;
+          if (member.name !== null) exportNames.add(member.name);
+        }
       }
     } else if (ts.isImportTypeNode(node)) {
       // `typeof import("./x")` in a type position: a real, type-only import.
@@ -121,5 +191,9 @@ export function extractImports(fileName: string, text: string): Extraction {
   };
   visit(sf);
 
-  return { imports, requireCalls, syntaxError: null };
+  return {
+    imports,
+    commonjsExports: assignsExports ? [...exportNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)) : null,
+    syntaxError: null,
+  };
 }

@@ -49,6 +49,23 @@ const label = ({ owner, name }: RepositoryRef) => `github.com/${owner}/${name}`;
 
 const HEADERS = { "user-agent": "cartograph", "x-github-api-version": "2022-11-28" };
 
+/** The API answers in well under a second; this long means it is not going to. */
+const API_TIMEOUT_MS = 15_000;
+/** Covers the whole download and extraction, up to MAX_ARCHIVE_BYTES on a slow link. */
+const ARCHIVE_TIMEOUT_MS = 5 * 60_000;
+
+/** Runs `work`, turning the abort of a timeout signal into a failure that says what timed out. */
+async function withTimeout<T>(what: string, ms: number, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  try {
+    return await work(AbortSignal.timeout(ms));
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      throw new RunError(`${what} took longer than ${ms / 1000} seconds, so the run stopped.`);
+    }
+    throw error;
+  }
+}
+
 function rateLimitMessage(response: Response): string | null {
   if (response.status !== 403 && response.status !== 429) return null;
   if (response.headers.get("x-ratelimit-remaining") !== "0") return null;
@@ -62,12 +79,17 @@ function rateLimitMessage(response: Response): string | null {
 /** The full sha of the default branch's head. */
 export async function resolveCommit(repo: RepositoryRef): Promise<string> {
   const url = `https://api.github.com/repos/${repo.owner}/${repo.name}/commits/HEAD`;
-  const response = await fetch(url, {
-    headers: { ...HEADERS, accept: "application/vnd.github.sha" },
+  const { response, body } = await withTimeout(`Asking GitHub for ${label(repo)}'s latest commit`, API_TIMEOUT_MS, async (signal) => {
+    const response = await fetch(url, {
+      headers: { ...HEADERS, accept: "application/vnd.github.sha" },
+      signal,
+    });
+    // Read inside the timeout too: the signal covers the body as well as the headers.
+    return { response, body: response.ok ? await response.text() : null };
   });
 
-  if (response.ok) {
-    const sha = (await response.text()).trim();
+  if (body !== null) {
+    const sha = body.trim();
     if (!/^[0-9a-f]{40}$/.test(sha)) {
       throw new RunError(`GitHub answered with something that is not a commit sha for ${label(repo)}.`);
     }
@@ -117,7 +139,20 @@ export async function downloadArchive(
   directory: string,
 ): Promise<number> {
   const url = `https://codeload.github.com/${repo.owner}/${repo.name}/tar.gz/${sha}`;
-  const response = await fetch(url, { headers: HEADERS });
+  return withTimeout(`Downloading ${label(repo)} at ${sha.slice(0, 7)}`, ARCHIVE_TIMEOUT_MS, (signal) =>
+    extractArchive(repo, sha, url, directory, signal),
+  );
+}
+
+async function extractArchive(
+  repo: RepositoryRef,
+  sha: string,
+  url: string,
+  directory: string,
+  signal: AbortSignal,
+): Promise<number> {
+  // The signal aborts the body stream too, so it bounds the extraction below, not just the request.
+  const response = await fetch(url, { headers: HEADERS, signal });
   if (!response.ok || !response.body) {
     throw new RunError(`Downloading ${label(repo)} at ${sha.slice(0, 7)} failed: GitHub returned ${response.status}.`);
   }

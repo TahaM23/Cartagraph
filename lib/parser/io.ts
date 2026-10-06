@@ -52,6 +52,14 @@ export function checkInvariants(result: ParseResult): string[] {
     if (!parsed.has(site.source)) problems.push(`import site ${site.source} is not a parsed file`);
   }
 
+  for (const c of result.commonjsExports) {
+    if (!parsed.has(c.file)) problems.push(`CommonJS exports of ${c.file}, which is not a parsed file`);
+    if (new Set(c.names).size !== c.names.length) problems.push(`${c.file}: CommonJS export names repeat`);
+  }
+  if (new Set(result.commonjsExports.map((c) => c.file)).size !== result.commonjsExports.length) {
+    problems.push("a file's CommonJS exports are listed twice");
+  }
+
   for (const r of result.routes) {
     if (!parsed.has(r.file)) problems.push(`route ${r.method} ${r.path} is declared in ${r.file}, which is not a parsed file`);
   }
