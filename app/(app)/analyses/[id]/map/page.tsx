@@ -4,11 +4,16 @@ import { Analysis } from "@/components/canvas/analysis";
 import { CodeMap } from "@/components/canvas/code-map";
 import { DetailPane } from "@/components/canvas/detail-pane";
 import { AnalysisShell } from "@/components/canvas/shell";
+import { tracingStatus } from "@/lib/ai/client";
 import { loadStoredGraph } from "@/lib/analysis/stored";
 import { countCategories, railFor } from "@/lib/canvas/categories";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Map · Cartograph" };
+
+// Explaining runs as an action on this page, and a model call that misses the
+// cache can take a while.
+export const maxDuration = 120;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -28,7 +33,7 @@ export default async function AnalysisMapPage({ params }: PageProps<"/analyses/[
   if (!analysis) notFound();
   if (analysis.status !== "complete") redirect(`/analyses/${id}`);
 
-  const { files, edges, routes } = await loadStoredGraph(supabase, id);
+  const { files, labels, edges, routes } = await loadStoredGraph(supabase, id);
   const adapter = analysis.adapter ?? "fallback";
   const rail = railFor(adapter);
   const repository = analysis.project
@@ -36,7 +41,16 @@ export default async function AnalysisMapPage({ params }: PageProps<"/analyses/[
     : "unknown repository";
 
   return (
-    <Analysis files={files} edges={edges} routes={routes} repository={repository} adapter={adapter}>
+    <Analysis
+      id={id}
+      files={files}
+      labels={labels}
+      edges={edges}
+      routes={routes}
+      repository={repository}
+      adapter={adapter}
+      tracing={tracingStatus()}
+    >
       <AnalysisShell
         repository={repository}
         files={files.length}

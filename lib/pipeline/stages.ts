@@ -1,13 +1,14 @@
 // What a run says about itself, shared by the pipeline that writes it and the
 // pages that show it. No Node or database imports, so the browser can use it.
 
-export const STAGES = ["fetch", "select", "parse", "store"] as const;
+export const STAGES = ["fetch", "select", "parse", "label", "store"] as const;
 export type Stage = (typeof STAGES)[number];
 
 export const STAGE_LABELS: Record<Stage, string> = {
   fetch: "Fetch",
   select: "Select",
   parse: "Parse",
+  label: "Label",
   store: "Store",
 };
 

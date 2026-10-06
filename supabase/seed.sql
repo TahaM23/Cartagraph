@@ -76,12 +76,7 @@ insert into public.routes (id, org_id, analysis_id, file_id, method, path, line)
   ('b3000000-0000-4000-8000-000000000001', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'b2000000-0000-4000-8000-000000000003', 'GET', '/', 1)
 on conflict do nothing;
 
-insert into public.explanations (id, org_id, analysis_id, file_id, cache_key, model, body) values
-  ('a4000000-0000-4000-8000-000000000001', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'a2000000-0000-4000-8000-000000000002',
-   'seed', 'seed', 'Constructs the QueryClient the rest of the package imports through src/index.ts, and leans on src/utils.ts for key hashing.'),
-  ('b4000000-0000-4000-8000-000000000001', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'b2000000-0000-4000-8000-000000000002',
-   'seed', 'seed', 'Builds the application factory that index.js exports, wiring in the router from lib/router/index.js.')
-on conflict do nothing;
+-- Explanations are a cache keyed on content (Phase 10); nothing to seed.
 
 insert into public.file_roles (id, org_id, analysis_id, file_id, role, source) values
   ('a5000000-0000-4000-8000-000000000001', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'a2000000-0000-4000-8000-000000000001', 'entry', 'convention'),

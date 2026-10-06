@@ -3,7 +3,13 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { parseRepositoryUrl } from "@/lib/pipeline/github";
+import { z } from "zod";
+import { AiUnavailable, flushTraces } from "@/lib/ai/client";
+import { explainFile, explainFolder, ExplainError, type AnalysisRef } from "@/lib/explain/explain";
+import { freshness } from "@/lib/explain/freshness";
+import type { ExplainResponse } from "@/lib/explain/types";
+import { taxonomyOf } from "@/lib/parser/adapters/taxonomy";
+import { parseRepositoryUrl, RunError } from "@/lib/pipeline/github";
 import { runAnalysis } from "@/lib/pipeline/run";
 import { STALE_AFTER_MS } from "@/lib/pipeline/stages";
 import { startAnalysis } from "@/lib/pipeline/start";
@@ -77,4 +83,75 @@ export async function rerunAnalysis(id: string): Promise<void> {
 
   if (claimed.length > 0) startRun(id);
   redirect(`/analyses/${id}`);
+}
+
+const ExplainRequest = z.object({
+  analysisId: z.uuid(),
+  subject: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("file"), path: z.string().min(1).max(1024) }),
+    z.object({ kind: z.literal("folder"), dir: z.string().min(1).max(1024) }),
+  ]),
+});
+
+/**
+ * Explain a file or a folder of an analysis. The caller names which; what it
+ * is connected to, and the code itself, are read here from the stored graph
+ * and the analysed commit, never taken from the request.
+ *
+ * Answers with what went wrong rather than throwing, so the pane can say it.
+ */
+export async function explainSubject(analysisId: string, subject: unknown): Promise<ExplainResponse> {
+  const request = ExplainRequest.safeParse({ analysisId, subject });
+  if (!request.success) return { ok: false, error: "That is not something that can be explained." };
+
+  // Visible through the user's client means it belongs to their organization.
+  const db = await createServerSupabase();
+  const { data: row, error } = await db
+    .from("analyses")
+    .select("id, org_id, status, commit_sha, adapter, project:projects(repo_owner, repo_name)")
+    .eq("id", request.data.analysisId)
+    .maybeSingle();
+  if (error) return { ok: false, error: `Reading the analysis failed: ${error.message}` };
+  if (!row || !row.project) return { ok: false, error: "No such analysis in this organization." };
+  if (row.status !== "complete" || !row.commit_sha) {
+    return { ok: false, error: "This analysis is being re-run; explain once it completes." };
+  }
+
+  const analysis: AnalysisRef = {
+    id: row.id,
+    orgId: row.org_id,
+    commit: row.commit_sha,
+    repo: { owner: row.project.repo_owner, name: row.project.repo_name },
+    framework: taxonomyOf(row.adapter ?? "")?.framework ?? null,
+  };
+  const target = request.data.subject;
+  const context = { db, admin: createAdminSupabase(), analysis };
+
+  // Traces are sent once the answer has gone out, not before.
+  after(() => flushTraces().catch((e) => console.warn("Sending traces failed:", e)));
+
+  try {
+    // Whether the code has moved on is asked of GitHub alongside, not inside
+    // the traced run: it is not a model call and decides nothing in it.
+    const [written, fresh] = await Promise.all([
+      target.kind === "file"
+        ? explainFile({ ...context, path: target.path })
+        : explainFolder({ ...context, dir: target.dir }),
+      (async () =>
+        freshness(analysis.repo, analysis.commit, target.kind === "file" ? await fileHash(db, analysis.id, target.path) : null))(),
+    ]);
+    return { ok: true, ...written, freshness: fresh };
+  } catch (error) {
+    if (error instanceof ExplainError || error instanceof AiUnavailable || error instanceof RunError) {
+      return { ok: false, error: error.message };
+    }
+    console.error("explaining failed:", error);
+    return { ok: false, error: `Explaining failed: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+/** The hash the parser stored for a file: what the repository's copy is compared against. */
+async function fileHash(db: Awaited<ReturnType<typeof createServerSupabase>>, analysisId: string, path: string) {
+  const { data } = await db.from("files").select("path, hash").eq("analysis_id", analysisId).eq("path", path).maybeSingle();
+  return data;
 }

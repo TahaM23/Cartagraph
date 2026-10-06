@@ -11,6 +11,7 @@ const DESCRIPTIONS: Record<Stage, string> = {
   fetch: "Download the repository at its latest commit",
   select: "Choose the source files to parse",
   parse: "Read every file's imports and resolve them",
+  label: "Give a role to files no framework convention identified",
   store: "Save the files, edges and coverage",
 };
 
