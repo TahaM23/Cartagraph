@@ -5,6 +5,11 @@
 // failed state, the stage it failed in and why, so a run that throws never
 // leaves a row saying "parsing" forever. (A process that dies outright still
 // can; the dashboard tells those apart by how long ago the stage last moved.)
+//
+// A run that has stopped moving can be taken over by a re-run while it is
+// still alive. Each run is known by the started_at it writes as it begins,
+// and every later write, the store included, applies only while that is
+// still the row's: a run that finds it is not stops, and writes nothing more.
 
 import fs from "node:fs";
 import os from "node:os";
@@ -69,13 +74,22 @@ export async function fetchAndParse(
   return { sha, result };
 }
 
+/** A newer run has claimed the analysis. Not a failure of this one, and not written as one. */
+class Superseded extends Error {}
+
+/** The SQLSTATE store_parse_result raises when the run storing is no longer the analysis's. */
+const SUPERSEDED_CODE = "CG409";
+
+/** Updates the analysis while this run, known by `startedAt`, still holds it. */
 async function write(
   db: AdminSupabase,
   id: string,
+  startedAt: string,
   values: Database["public"]["Tables"]["analyses"]["Update"],
 ) {
-  const { error } = await db.from("analyses").update(values).eq("id", id);
+  const { data, error } = await db.from("analyses").update(values).eq("id", id).eq("started_at", startedAt).select("id");
   if (error) throw new Error(`Updating analysis ${id} failed: ${error.message}`);
+  if (data.length === 0) throw new Superseded(`Analysis ${id} was claimed by a newer run.`);
 }
 
 async function repositoryOf(db: AdminSupabase, id: string): Promise<RepositoryRef> {
@@ -95,30 +109,36 @@ async function repositoryOf(db: AdminSupabase, id: string): Promise<RepositoryRe
  */
 export async function runAnalysis(db: AdminSupabase, id: string): Promise<void> {
   let current: Stage = "fetch";
+  // This run's claim on the row; every write after the first is scoped to it.
+  const startedAt = new Date().toISOString();
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "cartograph-"));
 
   const report: RunReporter = {
     async stage(stage, message) {
       current = stage;
-      await write(db, id, { stage, stage_message: message, stage_at: new Date().toISOString() });
+      await write(db, id, startedAt, { stage, stage_message: message, stage_at: new Date().toISOString() });
     },
   };
 
   try {
-    const now = new Date().toISOString();
-    await write(db, id, {
-      status: "parsing",
-      stage: "fetch",
-      stage_message: "Starting",
-      stage_at: now,
-      started_at: now,
-      finished_at: null,
-      error: null,
-    });
+    // The claim itself: the one write not scoped to a previous claim.
+    const { error: claimError } = await db
+      .from("analyses")
+      .update({
+        status: "parsing",
+        stage: "fetch",
+        stage_message: "Starting",
+        stage_at: startedAt,
+        started_at: startedAt,
+        finished_at: null,
+        error: null,
+      })
+      .eq("id", id);
+    if (claimError) throw new Error(`Updating analysis ${id} failed: ${claimError.message}`);
 
     const repo = await repositoryOf(db, id);
     const { result } = await fetchAndParse(repo, directory, report, (sha) =>
-      write(db, id, { commit_sha: sha }),
+      write(db, id, startedAt, { commit_sha: sha }),
     );
 
     await report.stage(
@@ -129,9 +149,15 @@ export async function runAnalysis(db: AdminSupabase, id: string): Promise<void> 
     const { error } = await db.rpc("store_parse_result", {
       target_analysis: id,
       parse_result: result,
+      claimed_started_at: startedAt,
     });
+    if (error?.code === SUPERSEDED_CODE) throw new Superseded(error.message);
     if (error) throw new Error(`Storing the result failed: ${error.message}`);
   } catch (error) {
+    if (error instanceof Superseded) {
+      console.warn(`analysis ${id}: a run started at ${startedAt} stopped in ${current}: ${error.message}`);
+      return;
+    }
     const message =
       error instanceof RunError
         ? error.message
@@ -145,7 +171,8 @@ export async function runAnalysis(db: AdminSupabase, id: string): Promise<void> 
         stage_at: new Date().toISOString(),
         finished_at: new Date().toISOString(),
       })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("started_at", startedAt);
     if (failed.error) {
       console.error(`analysis ${id} failed in ${current} (${message}), and recording that failed too:`, failed.error);
     }

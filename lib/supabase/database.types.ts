@@ -500,7 +500,7 @@ export type Database = {
     }
     Functions: {
       store_parse_result: {
-        Args: { parse_result: Json; target_analysis: string }
+        Args: { claimed_started_at: string; parse_result: Json; target_analysis: string }
         Returns: undefined
       }
     }
