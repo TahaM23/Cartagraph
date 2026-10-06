@@ -9,6 +9,7 @@
 // against: pass an organization you belong to) and run if it is new, or if
 // --rerun asks for it; then the row is read back.
 
+import "../scripts/env.ts";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

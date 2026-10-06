@@ -30,7 +30,7 @@ const CONFIG_FILE = /(^|[./-])config\.[cm]?[jt]s$|^\.?[\w-]+rc\.[cm]?[jt]s$/;
 const SCRIPT_DIR = /(^|\/)(scripts|bin)(\/|$)/;
 
 /** First match wins, so a test inside scripts/ is a test. */
-export function kindOf(file: FileNode): Kind {
+export function kindOf(file: Pick<FileNode, "path" | "folder">): Kind {
   const name = file.path.slice(file.path.lastIndexOf("/") + 1);
   if (TEST_FILE.test(name) || TEST_DIR.test(file.folder)) return "test";
   if (DECLARATION.test(name)) return "types";

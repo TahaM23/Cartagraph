@@ -14,7 +14,7 @@
 // script.
 
 import { Client } from "langsmith";
-import { traceable } from "langsmith/traceable";
+import { getCurrentRunTree, traceable } from "langsmith/traceable";
 import { wrapOpenAI } from "langsmith/wrappers/openai";
 import OpenAI from "openai";
 
@@ -98,7 +98,52 @@ export function traced<F extends AnyFunction>(
   return traceable(fn, { ...config, name, client: tracer() });
 }
 
-/** Sends any runs still queued. Call before the process or request ends. */
+interface Score {
+  runId: string;
+  traceId: string;
+  project: string;
+  key: string;
+  score: number;
+  comment: string;
+}
+
+const scores: Score[] = [];
+
+/**
+ * Scores the traced run in progress, as feedback on it: what an evaluator
+ * running against live traffic records. Held until flushTraces, which sends
+ * the run before its score. Without tracing there is nowhere to record it.
+ */
+export function scoreRun(key: string, score: number, comment: string): void {
+  const run = getCurrentRunTree(true);
+  if (!run || !tracer() || !run.project_name) return;
+  scores.push({ runId: run.id, traceId: run.trace_id, project: run.project_name, key, score, comment });
+}
+
+const projectIds = new Map<string, Promise<string>>();
+const projectId = (client: Client, name: string) => {
+  if (!projectIds.has(name)) projectIds.set(name, client.readProject({ projectName: name }).then((p) => p.id));
+  return projectIds.get(name)!;
+};
+
+/** Sends any runs still queued, then their scores. Call before the process or request ends. */
 export async function flushTraces(): Promise<void> {
   await langsmith?.awaitPendingTraceBatches();
+  const client = langsmith;
+  if (!client) return;
+  const sending = scores.splice(0);
+  await Promise.all(
+    sending.map(async (s) =>
+      client.createFeedback({
+        runId: s.runId,
+        traceId: s.traceId === s.runId ? undefined : s.traceId,
+        sessionId: await projectId(client, s.project),
+        key: s.key,
+        score: s.score,
+        comment: s.comment,
+        // Computed by the application, not by a model grading a model.
+        feedbackSourceType: "app",
+      }),
+    ),
+  );
 }

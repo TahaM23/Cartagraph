@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "parse": "node lib/parser/cli.ts",
-    "analyse": "node --env-file-if-exists=.env.local lib/pipeline/cli.ts"
+    "analyse": "node lib/pipeline/cli.ts",
+    "eval:paths": "node evals/invented-paths.ts",
+    "eval:roles": "node evals/roles.ts",
+    "eval:prompts": "node evals/prompts.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.10",
@@ -24,6 +27,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@next/env": "16.3.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
