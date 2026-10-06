@@ -15,6 +15,13 @@ export interface TaxonomyEntry {
   /** The rail's name for the category. */
   label: string;
   kind: Kind;
+  /**
+   * Whether the framework loads these files itself, by where they sit or what
+   * they are called, so that nothing importing them says nothing about their
+   * use. A page is reached this way; a component or a service still has to be
+   * imported by something, and one nothing imports is worth pointing out.
+   */
+  reached: boolean;
   /** The roles the adapter assigns that land here. */
   roles: readonly string[];
 }
@@ -26,61 +33,60 @@ export interface Taxonomy {
 }
 
 const REACT_LAYERS = [
-  { label: "Components", kind: "source", roles: ["component"] },
-  { label: "Hooks", kind: "source", roles: ["hook"] },
+  { label: "Components", kind: "source", reached: false, roles: ["component"] },
+  { label: "Hooks", kind: "source", reached: false, roles: ["hook"] },
 ] as const satisfies readonly TaxonomyEntry[];
 
 export const TAXONOMIES = {
   nestjs: {
     framework: "NestJS",
     categories: [
-      { label: "Controllers", kind: "source", roles: ["controller"] },
-      { label: "Resolvers", kind: "source", roles: ["resolver"] },
-      { label: "Gateways", kind: "source", roles: ["gateway"] },
-      { label: "Services", kind: "source", roles: ["service"] },
-      { label: "Repositories", kind: "source", roles: ["repository"] },
-      { label: "Modules", kind: "source", roles: ["module"] },
-      { label: "Entities", kind: "source", roles: ["entity"] },
-      { label: "Schemas", kind: "source", roles: ["schema"] },
-      { label: "DTOs", kind: "source", roles: ["DTO"] },
-      { label: "Guards", kind: "source", roles: ["guard"] },
-      { label: "Interceptors", kind: "source", roles: ["interceptor"] },
-      { label: "Pipes", kind: "source", roles: ["pipe"] },
-      { label: "Filters", kind: "source", roles: ["exception filter"] },
-      { label: "Middleware", kind: "source", roles: ["middleware"] },
-      { label: "Strategies", kind: "source", roles: ["strategy"] },
-      { label: "Decorators", kind: "source", roles: ["decorator"] },
-      { label: "Bootstrap", kind: "source", roles: ["bootstrap"] },
+      { label: "Controllers", kind: "source", reached: false, roles: ["controller"] },
+      { label: "Resolvers", kind: "source", reached: false, roles: ["resolver"] },
+      { label: "Gateways", kind: "source", reached: false, roles: ["gateway"] },
+      { label: "Services", kind: "source", reached: false, roles: ["service"] },
+      { label: "Repositories", kind: "source", reached: false, roles: ["repository"] },
+      { label: "Modules", kind: "source", reached: false, roles: ["module"] },
+      { label: "Entities", kind: "source", reached: true, roles: ["entity"] },
+      { label: "Schemas", kind: "source", reached: false, roles: ["schema"] },
+      { label: "DTOs", kind: "source", reached: false, roles: ["DTO"] },
+      { label: "Guards", kind: "source", reached: false, roles: ["guard"] },
+      { label: "Interceptors", kind: "source", reached: false, roles: ["interceptor"] },
+      { label: "Pipes", kind: "source", reached: false, roles: ["pipe"] },
+      { label: "Filters", kind: "source", reached: false, roles: ["exception filter"] },
+      { label: "Middleware", kind: "source", reached: false, roles: ["middleware"] },
+      { label: "Strategies", kind: "source", reached: false, roles: ["strategy"] },
+      { label: "Decorators", kind: "source", reached: false, roles: ["decorator"] },
+      { label: "Bootstrap", kind: "source", reached: true, roles: ["bootstrap"] },
     ],
   },
   nextjs: {
     framework: "Next.js",
     categories: [
-      { label: "Page routes", kind: "source", roles: ["page route"] },
-      { label: "API endpoints", kind: "source", roles: ["API endpoint"] },
-      { label: "Server actions", kind: "source", roles: ["server actions"] },
-      { label: "Layouts", kind: "source", roles: ["layout", "template"] },
+      { label: "Page routes", kind: "source", reached: true, roles: ["page route"] },
+      { label: "API endpoints", kind: "source", reached: true, roles: ["API endpoint"] },
+      { label: "Server actions", kind: "source", reached: false, roles: ["server actions"] },
+      { label: "Layouts", kind: "source", reached: true, roles: ["layout", "template"] },
       {
-        label: "Loading & error UI",
-        kind: "source",
+        label: "Loading & error UI", kind: "source", reached: true,
         roles: ["loading UI", "error UI", "not-found UI", "forbidden UI", "unauthorized UI", "parallel route fallback"],
       },
       ...REACT_LAYERS,
-      { label: "Custom app & document", kind: "source", roles: ["custom app", "custom document", "error page"] },
-      { label: "Proxy & middleware", kind: "source", roles: ["proxy", "middleware"] },
-      { label: "Metadata files", kind: "source", roles: ["metadata"] },
-      { label: "Instrumentation", kind: "source", roles: ["instrumentation"] },
-      { label: "MDX components", kind: "source", roles: ["MDX components"] },
-      { label: "Next.js config", kind: "config", roles: ["Next.js config"] },
+      { label: "Custom app & document", kind: "source", reached: true, roles: ["custom app", "custom document", "error page"] },
+      { label: "Proxy & middleware", kind: "source", reached: true, roles: ["proxy", "middleware"] },
+      { label: "Metadata files", kind: "source", reached: true, roles: ["metadata"] },
+      { label: "Instrumentation", kind: "source", reached: true, roles: ["instrumentation"] },
+      { label: "MDX components", kind: "source", reached: true, roles: ["MDX components"] },
+      { label: "Next.js config", kind: "config", reached: true, roles: ["Next.js config"] },
     ],
   },
   docusaurus: {
     framework: "Docusaurus",
     categories: [
-      { label: "Pages", kind: "source", roles: ["page"] },
-      { label: "Theme components", kind: "source", roles: ["theme component"] },
+      { label: "Pages", kind: "source", reached: true, roles: ["page"] },
+      { label: "Theme components", kind: "source", reached: true, roles: ["theme component"] },
       ...REACT_LAYERS,
-      { label: "Docusaurus config", kind: "config", roles: ["Docusaurus config"] },
+      { label: "Docusaurus config", kind: "config", reached: true, roles: ["Docusaurus config"] },
     ],
   },
   react: {

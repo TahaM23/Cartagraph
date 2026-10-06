@@ -89,7 +89,7 @@ export function Analysis({
   const neighbours = useMemo(() => neighboursOf(model), [model]);
   const rail = useMemo(() => railFor(adapter), [adapter]);
   const summary = useMemo(() => summarize(model, neighbours, rail, routes), [model, neighbours, rail, routes]);
-  const insights = useMemo(() => findInsights(model, neighbours), [model, neighbours]);
+  const insights = useMemo(() => findInsights(model, neighbours, rail), [model, neighbours, rail]);
   const [category, setCategory] = useState<string | null>(null);
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   const [scroll, setScroll] = useState<ReadonlyMap<string, number>>(() => new Map());

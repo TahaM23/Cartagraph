@@ -58,15 +58,20 @@ export function within(dir: string, path: string): string | null {
 }
 
 /**
- * Where a framework applies: the packages that depend on it. A file belongs
+ * Where a framework applies: the packages that depend on it (on any of
+ * `dependency`, when it names several packages). A file belongs
  * to the nearest one above it, so a monorepo with one app on the framework
  * gets that app's files and nobody else's. Returns that package's directory
  * and the file's path inside it, or null for a file in none of them.
  */
-export function ownerBy(ctx: RepoContext, dependency: string): (path: string) => { dir: string; rel: string } | null {
+export function ownerBy(
+  ctx: RepoContext,
+  dependency: string | readonly string[],
+): (path: string) => { dir: string; rel: string } | null {
+  const names = typeof dependency === "string" ? [dependency] : dependency;
   // Deepest first, so a file belongs to the nearest package above it.
   const dirs = ctx.packageJsons
-    .filter((pkg) => dependsOn(pkg.json, dependency))
+    .filter((pkg) => names.some((name) => dependsOn(pkg.json, name)))
     .map((pkg) => pkg.dir)
     .sort((a, b) => b.length - a.length);
   return (path) => {

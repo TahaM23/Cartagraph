@@ -45,6 +45,8 @@ export interface Category {
   label: string;
   /** The colour it draws in. */
   kind: Kind;
+  /** Whether something other than an import reaches its files: the framework, or the tool that runs its kind. */
+  reached: boolean;
 }
 
 export interface Rail {
@@ -54,10 +56,19 @@ export interface Rail {
   categories: readonly Category[];
   /** The one category a file is counted in. */
   of(file: FileNode): Category;
+  /**
+   * Whether something other than an import reaches this file: a framework
+   * convention that loads it, a declared entry point, or the tool that runs
+   * its kind of file. A role this rail does not know (from an older parse)
+   * is taken as reached, the way every role was before roles included
+   * components and services.
+   */
+  reached(file: FileNode): boolean;
 }
 
 const KIND_CATEGORIES = Object.fromEntries(
-  KINDS.map((kind) => [kind, { id: `kind:${kind}`, label: KIND_LABELS[kind], kind }]),
+  // Tests, declarations, config and scripts are run by their tools; plain source is not.
+  KINDS.map((kind) => [kind, { id: `kind:${kind}`, label: KIND_LABELS[kind], kind, reached: kind !== "source" }]),
 ) as Record<Kind, Category>;
 
 /**
@@ -71,21 +82,24 @@ export function railFor(adapter: string): Rail {
   const taxonomy = taxonomyOf(adapter);
   const byRole = new Map<string, Category>();
   const framework: Category[] = (taxonomy?.categories ?? []).map((entry) => {
-    const category = { id: `role:${entry.label}`, label: entry.label, kind: entry.kind };
+    const category = { id: `role:${entry.label}`, label: entry.label, kind: entry.kind, reached: entry.reached };
     for (const role of entry.roles) byRole.set(role, category);
     return category;
   });
+  const of = (file: FileNode): Category => {
+    const kind = kindOf(file);
+    if (kind !== "test" && file.role !== null) {
+      const category = byRole.get(file.role);
+      if (category) return category;
+    }
+    return KIND_CATEGORIES[kind];
+  };
   return {
     framework: taxonomy?.framework ?? null,
     categories: [...framework, ...KINDS.map((k) => KIND_CATEGORIES[k])],
-    of(file) {
-      const kind = kindOf(file);
-      if (kind !== "test" && file.role !== null) {
-        const category = byRole.get(file.role);
-        if (category) return category;
-      }
-      return KIND_CATEGORIES[kind];
-    },
+    of,
+    reached: (file) =>
+      file.entry !== null || of(file).reached || (file.role !== null && !byRole.has(file.role)),
   };
 }
 

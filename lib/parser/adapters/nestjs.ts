@@ -84,7 +84,8 @@ function bootstrapFiles(ctx: RepoContext): EntryPoint[] {
 }
 
 function rolesOf(ctx: RepoContext): RoleAssignment[] {
-  const owner = ownerBy(ctx, "@nestjs/core");
+  // A shared library in a Nest monorepo depends on @nestjs/common alone.
+  const owner = ownerBy(ctx, ["@nestjs/core", COMMON]);
   const roles: RoleAssignment[] = [];
   const bootstrap = new Set(bootstrapFiles(ctx).map((e) => e.path));
   for (const file of ctx.files) {
