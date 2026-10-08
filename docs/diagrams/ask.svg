@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 230" width="980" height="230" role="img" aria-label="Asking a question: the Ask pane sends the question to /api/ask, which checks the session and mints a pass for one analysis; the agent gets the pass in its run context, calls lookups on /api/agent with the pass as a bearer token; the database function checks the pass and returns that one analysis's graph; the canvas's own functions answer; each step streams back to the pane.">
+  <style>
+    .box{fill:#ffffff;stroke:#c8cdd6;stroke-width:1.4}
+    .grp{fill:none;stroke:#c8cdd6;stroke-width:1.2;stroke-dasharray:5 4}
+    .mdl{fill:#fdf2df;stroke:#b06f12;stroke-width:1.6}
+    .t{fill:#171a20;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .s{fill:#5a6170;font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .l{fill:#5a6170;font:italic 11.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .g{fill:#5a6170;font:600 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.06em}
+    .ln{stroke:#171a20;stroke-width:1.3;fill:none}
+    .tick{stroke:#c8cdd6;stroke-width:1.3;fill:none}
+    .ah{fill:#171a20}
+    @media (prefers-color-scheme: dark){
+      .box{fill:#171a21;stroke:#363c48}.grp,.tick{stroke:#363c48}.mdl{fill:#2a2114;stroke:#e2a646}
+      .t{fill:#e5e7ec}.s,.l,.g{fill:#9aa2b1}.ln{stroke:#e5e7ec}.ah{fill:#e5e7ec}
+    }
+  </style>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker></defs>
+
+  <rect class="grp" x="416" y="20" width="548" height="150" rx="6"/>
+  <text class="g" x="430" y="40">THE AGENT NEVER SEES WHICH ANALYSIS IT IS READING</text>
+
+  <rect class="box" x="20" y="70" width="140" height="64" rx="4"/>
+  <text class="t" x="90" y="97" text-anchor="middle">Ask pane</text>
+  <text class="s" x="90" y="116" text-anchor="middle">shows each step</text>
+
+  <rect class="box" x="220" y="70" width="140" height="64" rx="4"/>
+  <text class="t" x="290" y="97" text-anchor="middle">/api/ask</text>
+  <text class="s" x="290" y="116" text-anchor="middle">session → pass</text>
+
+  <rect class="mdl" x="432" y="70" width="140" height="64" rx="4"/>
+  <text class="t" x="502" y="97" text-anchor="middle">cartograph-agent</text>
+  <text class="s" x="502" y="116" text-anchor="middle">model, 6 lookups</text>
+
+  <rect class="box" x="632" y="70" width="140" height="64" rx="4"/>
+  <text class="t" x="702" y="97" text-anchor="middle">/api/agent/[tool]</text>
+  <text class="s" x="702" y="116" text-anchor="middle">canvas functions</text>
+
+  <rect class="box" x="832" y="70" width="120" height="64" rx="4"/>
+  <text class="t" x="892" y="97" text-anchor="middle">agent_graph()</text>
+  <text class="s" x="892" y="116" text-anchor="middle">checks pass</text>
+
+  <line class="ln" x1="160" y1="88" x2="217" y2="88" marker-end="url(#a)"/>
+  <text class="l" x="189" y="80" text-anchor="middle">question</text>
+  <line class="ln" x1="360" y1="88" x2="429" y2="88" marker-end="url(#a)"/>
+  <text class="l" x="395" y="80" text-anchor="middle">pass</text>
+  <line class="ln" x1="572" y1="88" x2="629" y2="88" marker-end="url(#a)"/>
+  <text class="l" x="601" y="80" text-anchor="middle">lookup</text>
+  <line class="ln" x1="772" y1="88" x2="829" y2="88" marker-end="url(#a)"/>
+  <text class="l" x="801" y="80" text-anchor="middle">pass</text>
+
+  <line class="ln" x1="832" y1="116" x2="775" y2="116" marker-end="url(#a)"/>
+  <text class="l" x="801" y="150" text-anchor="middle">one graph</text>
+  <line class="ln" x1="632" y1="116" x2="575" y2="116" marker-end="url(#a)"/>
+  <text class="l" x="601" y="150" text-anchor="middle">result</text>
+  <line class="ln" x1="432" y1="116" x2="363" y2="116" marker-end="url(#a)"/>
+  <text class="l" x="395" y="150" text-anchor="middle">steps</text>
+  <line class="ln" x1="220" y1="116" x2="163" y2="116" marker-end="url(#a)"/>
+  <text class="l" x="189" y="150" text-anchor="middle">stream</text>
+
+  <text class="s" x="20" y="205">The pass names one analysis and its organization, expires in 30 minutes, and is checked by the database itself.</text>
+</svg>

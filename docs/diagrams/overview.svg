@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 530" width="960" height="530" role="img" aria-label="System overview: the browser talks to the Next.js server, which reads Supabase as the user, writes with the secret key, and calls GitHub, OpenAI, LangSmith and the agent service; the agent's lookups come back to the server with a pass the database checks; Supabase Realtime pushes run progress to the browser.">
+  <style>
+    .box{fill:#ffffff;stroke:#c8cdd6;stroke-width:1.4}
+    .grp{fill:none;stroke:#c8cdd6;stroke-width:1.2;stroke-dasharray:5 4}
+    .mdl{fill:#fdf2df;stroke:#b06f12;stroke-width:1.6}
+    .t{fill:#171a20;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .s{fill:#5a6170;font:11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .l{fill:#5a6170;font:italic 11.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .g{fill:#5a6170;font:600 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.06em}
+    .ln{stroke:#171a20;stroke-width:1.3;fill:none}
+    .tick{stroke:#c8cdd6;stroke-width:1.3;fill:none}
+    .ah{fill:#171a20}
+    @media (prefers-color-scheme: dark){
+      .box{fill:#171a21;stroke:#363c48}.grp,.tick{stroke:#363c48}.mdl{fill:#2a2114;stroke:#e2a646}
+      .t{fill:#e5e7ec}.s,.l,.g{fill:#9aa2b1}.ln{stroke:#e5e7ec}.ah{fill:#e5e7ec}
+    }
+  </style>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker></defs>
+
+  <rect class="box" x="20" y="20" width="170" height="56" rx="4"/>
+  <text class="t" x="105" y="44" text-anchor="middle">Clerk</text>
+  <text class="s" x="105" y="62" text-anchor="middle">sign-in · organizations</text>
+
+  <rect class="box" x="280" y="20" width="150" height="56" rx="4"/>
+  <text class="t" x="355" y="44" text-anchor="middle">GitHub</text>
+  <text class="s" x="355" y="62" text-anchor="middle">public repos only</text>
+
+  <rect class="mdl" x="470" y="20" width="150" height="56" rx="4"/>
+  <text class="t" x="545" y="44" text-anchor="middle">OpenAI</text>
+  <text class="s" x="545" y="62" text-anchor="middle">label · explain</text>
+
+  <rect class="box" x="740" y="20" width="200" height="56" rx="4"/>
+  <text class="t" x="840" y="44" text-anchor="middle">LangSmith</text>
+  <text class="s" x="840" y="62" text-anchor="middle">traces · scores</text>
+
+  <rect class="box" x="20" y="150" width="170" height="130" rx="4"/>
+  <text class="t" x="105" y="178" text-anchor="middle">Browser</text>
+  <text class="s" x="105" y="202" text-anchor="middle">map + graph maths</text>
+  <text class="s" x="105" y="220" text-anchor="middle">run progress</text>
+  <text class="s" x="105" y="238" text-anchor="middle">detail pane · Ask</text>
+
+  <rect class="grp" x="260" y="110" width="380" height="210" rx="6"/>
+  <text class="g" x="276" y="132">NEXT.JS SERVER</text>
+  <rect class="box" x="280" y="145" width="340" height="44" rx="4"/>
+  <text class="t" x="450" y="163" text-anchor="middle">proxy.ts</text>
+  <text class="s" x="450" y="180" text-anchor="middle">signed out → /sign-in</text>
+  <rect class="box" x="280" y="200" width="340" height="44" rx="4"/>
+  <text class="t" x="450" y="218" text-anchor="middle">pages · actions · /api/ask · /api/agent</text>
+  <text class="s" x="450" y="235" text-anchor="middle">analyse · explain · ask · answer lookups</text>
+  <rect class="box" x="280" y="255" width="340" height="44" rx="4"/>
+  <text class="t" x="450" y="273" text-anchor="middle">after(): the pipeline run</text>
+  <text class="s" x="450" y="290" text-anchor="middle">fetch → select → parse → label → store</text>
+
+  <rect class="box" x="740" y="150" width="200" height="150" rx="4"/>
+  <text class="t" x="840" y="176" text-anchor="middle">Supabase</text>
+  <text class="s" x="840" y="198" text-anchor="middle">Postgres, RLS by org</text>
+  <text class="s" x="840" y="216" text-anchor="middle">graph + AI caches</text>
+  <line class="tick" x1="756" y1="234" x2="924" y2="234"/>
+  <text class="s" x="840" y="258" text-anchor="middle">Realtime broadcast</text>
+  <text class="s" x="840" y="276" text-anchor="middle">analysis:&lt;id&gt;</text>
+
+  <rect class="mdl" x="280" y="410" width="340" height="56" rx="4"/>
+  <text class="t" x="450" y="434" text-anchor="middle">cartograph-agent (separate service)</text>
+  <text class="s" x="450" y="452" text-anchor="middle">model + six graph lookups, no code</text>
+
+  <line class="ln" x1="105" y1="76" x2="105" y2="147" marker-end="url(#a)"/>
+  <text class="l" x="113" y="108">token carries</text>
+  <text class="l" x="113" y="122">the org claim</text>
+
+  <line class="ln" x1="190" y1="167" x2="277" y2="167" marker-end="url(#a)"/>
+  <text class="l" x="233" y="159" text-anchor="middle">requests</text>
+
+  <line class="ln" x1="355" y1="110" x2="355" y2="79" marker-end="url(#a)"/>
+  <text class="l" x="362" y="99">archive, file at commit</text>
+  <line class="ln" x1="545" y1="110" x2="545" y2="79" marker-end="url(#a)"/>
+  <text class="l" x="552" y="99">nano · mini</text>
+  <path class="ln" d="M640 130 H840 V79" marker-end="url(#a)"/>
+  <text class="l" x="740" y="123" text-anchor="middle">every AI call traced</text>
+
+  <line class="ln" x1="620" y1="222" x2="737" y2="210" marker-end="url(#a)"/>
+  <text class="l" x="690" y="196" text-anchor="middle">reads as</text>
+  <text class="l" x="690" y="209" text-anchor="middle">the user</text>
+  <line class="ln" x1="620" y1="277" x2="737" y2="270" marker-end="url(#a)"/>
+  <text class="l" x="690" y="290" text-anchor="middle">writes,</text>
+  <text class="l" x="690" y="303" text-anchor="middle">secret key</text>
+
+  <line class="ln" x1="380" y1="320" x2="380" y2="407" marker-end="url(#a)"/>
+  <text class="l" x="372" y="360" text-anchor="end">question,</text>
+  <text class="l" x="372" y="374" text-anchor="end">pass in context</text>
+  <line class="ln" x1="520" y1="410" x2="520" y2="323" marker-end="url(#a)"/>
+  <text class="l" x="528" y="360">lookups,</text>
+  <text class="l" x="528" y="374">pass as bearer</text>
+
+  <path class="ln" d="M840 300 V505 H105 V283" marker-end="url(#a)"/>
+  <text class="l" x="700" y="498" text-anchor="middle">stage events, pushed live while a run is going</text>
+</svg>
