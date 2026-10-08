@@ -69,7 +69,25 @@ export async function loadStoredGraph(db: Db, analysisId: string): Promise<Store
         .range(from, to),
     ),
   ]);
+  return assembleGraph(analysisId, { fileRows, roleRows, edgeRows, routeRows });
+}
 
+type Row<T extends keyof Database["public"]["Tables"]> = Database["public"]["Tables"][T]["Row"];
+
+/** An analysis's rows as stored, the shapes loadStoredGraph reads. */
+export interface StoredRows {
+  fileRows: Pick<
+    Row<"files">,
+    | "id" | "path" | "folder" | "package" | "extension" | "lines" | "bytes" | "hash"
+    | "parsed" | "skip_reason" | "skip_detail" | "fan_in" | "fan_out" | "entry"
+  >[];
+  roleRows: Pick<Row<"file_roles">, "file_id" | "role" | "source">[];
+  edgeRows: Pick<Row<"edges">, "source_file_id" | "target_file_id">[];
+  routeRows: Pick<Row<"routes">, "file_id" | "method" | "path" | "line">[];
+}
+
+/** The rows of one analysis as the parser's own shapes. Shared by every reader, whichever way it got the rows. */
+export function assembleGraph(analysisId: string, { fileRows, roleRows, edgeRows, routeRows }: StoredRows): StoredGraph {
   const roles = new Map(roleRows.filter((r) => r.source === "convention").map((r) => [r.file_id, r.role]));
   const paths = new Map(fileRows.map((f) => [f.id, f.path]));
 

@@ -1,0 +1,22 @@
+{
+  "name": "cartograph-agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cartograph's Ask agent: answers questions about one analysis from its stored import graph.",
+  "dependencies": {
+    "@langchain/openai": "^1.5.13",
+    "langchain": "^1.5.16",
+    "managed-deepagents": "0.8.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "dev": "mda dev .",
+    "typecheck": "tsc --noEmit",
+    "check:tools": "node scripts/check-tools.ts"
+  }
+}

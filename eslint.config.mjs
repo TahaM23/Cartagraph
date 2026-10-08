@@ -30,6 +30,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Its own project, with its own manifest and checks.
+    "cartograph-agent/**",
   ]),
 ]);
 

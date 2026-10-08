@@ -511,6 +511,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agent_graph: {
+        Args: { credential: string }
+        Returns: Json
+      }
       neighbourhood: {
         Args: { member_paths: string[]; target_analysis: string }
         Returns: Json
