@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { dependsOn, type EntryPoint, type FrameworkAdapter } from "../adapter.ts";
+import { dependsOn, type EntryPoint, type FrameworkAdapter, type RepoContext } from "../adapter.ts";
 
 const SCRIPT = /<script\b([^>]*)>/gi;
 const MODULE = /\btype\s*=\s*["']module["']/i;
@@ -19,28 +19,34 @@ function moduleScripts(html: string): string[] {
   return found;
 }
 
+/**
+ * The module scripts each package's index.html loads. Vite is often installed
+ * once at a workspace root and serves apps in packages below it, so every
+ * package's index.html is read.
+ */
+export function htmlEntryPoints(ctx: RepoContext): EntryPoint[] {
+  const entries: EntryPoint[] = [];
+  for (const { dir } of ctx.packageJsons) {
+    const html = path.posix.join(dir, "index.html");
+    let text: string;
+    try {
+      text = readFileSync(path.join(ctx.root, html), "utf8");
+    } catch {
+      continue;
+    }
+    for (const src of moduleScripts(text)) {
+      // A leading "/" is the Vite root, which is where index.html sits.
+      const rel = path.posix.normalize(path.posix.join(dir, src.replace(/^\//, "")));
+      if (ctx.files.has(rel)) entries.push({ path: rel, reason: `${html} <script type="module">` });
+    }
+  }
+  return entries;
+}
+
 export const viteAdapter: FrameworkAdapter = {
   name: "vite",
   detect: (ctx) => ctx.packageJsons.some((pkg) => dependsOn(pkg.json, "vite")),
-  entryPoints(ctx) {
-    const entries: EntryPoint[] = [];
-    // Vite is often installed once at a workspace root and serves apps in
-    // packages below it, so every package's index.html is read.
-    for (const { dir } of ctx.packageJsons) {
-      const html = path.posix.join(dir, "index.html");
-      let text: string;
-      try {
-        text = readFileSync(path.join(ctx.root, html), "utf8");
-      } catch {
-        continue;
-      }
-      for (const src of moduleScripts(text)) {
-        // A leading "/" is the Vite root, which is where index.html sits.
-        const rel = path.posix.normalize(path.posix.join(dir, src.replace(/^\//, "")));
-        if (ctx.files.has(rel)) entries.push({ path: rel, reason: `${html} <script type="module">` });
-      }
-    }
-    return entries;
-  },
+  entryPoints: htmlEntryPoints,
   roles: () => [],
+  routes: () => [],
 };

@@ -8,6 +8,8 @@ const REQUIRED = [
   "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  // Server-only; the pipeline writes with it (lib/supabase/admin.ts).
+  "SUPABASE_SECRET_KEY",
 ] as const;
 
 export function checkEnv() {

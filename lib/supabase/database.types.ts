@@ -20,52 +20,70 @@ export type Database = {
     Tables: {
       analyses: {
         Row: {
+          adapter: string | null
           commit_sha: string | null
           coverage: Json | null
           created_at: string
           created_by: string | null
           edge_count: number | null
           error: string | null
+          excluded: Json | null
           files_parsed: number | null
           files_total: number | null
           finished_at: string | null
           id: string
           org_id: string
           project_id: string
+          stage: string | null
+          stage_at: string | null
+          stage_message: string | null
           started_at: string | null
           status: string
+          unresolved: Json | null
         }
         Insert: {
+          adapter?: string | null
           commit_sha?: string | null
           coverage?: Json | null
           created_at?: string
           created_by?: string | null
           edge_count?: number | null
           error?: string | null
+          excluded?: Json | null
           files_parsed?: number | null
           files_total?: number | null
           finished_at?: string | null
           id?: string
           org_id: string
           project_id: string
+          stage?: string | null
+          stage_at?: string | null
+          stage_message?: string | null
           started_at?: string | null
           status?: string
+          unresolved?: Json | null
         }
         Update: {
+          adapter?: string | null
           commit_sha?: string | null
           coverage?: Json | null
           created_at?: string
           created_by?: string | null
           edge_count?: number | null
           error?: string | null
+          excluded?: Json | null
           files_parsed?: number | null
           files_total?: number | null
           finished_at?: string | null
           id?: string
           org_id?: string
           project_id?: string
+          stage?: string | null
+          stage_at?: string | null
+          stage_message?: string | null
           started_at?: string | null
           status?: string
+          unresolved?: Json | null
         }
         Relationships: [
           {
@@ -89,6 +107,7 @@ export type Database = {
           analysis_id: string
           id: number
           kind: string
+          line: number | null
           org_id: string
           source_file_id: string
           specifier: string
@@ -99,6 +118,7 @@ export type Database = {
           analysis_id: string
           id?: never
           kind: string
+          line?: number | null
           org_id: string
           source_file_id: string
           specifier: string
@@ -109,6 +129,7 @@ export type Database = {
           analysis_id?: string
           id?: never
           kind?: string
+          line?: number | null
           org_id?: string
           source_file_id?: string
           specifier?: string
@@ -253,32 +274,56 @@ export type Database = {
       files: {
         Row: {
           analysis_id: string
+          bytes: number
+          entry: string | null
+          extension: string
           fan_in: number
           fan_out: number
+          folder: string
+          hash: string | null
           id: string
+          lines: number
           org_id: string
+          package: string | null
           parsed: boolean
           path: string
+          skip_detail: string | null
           skip_reason: string | null
         }
         Insert: {
           analysis_id: string
+          bytes?: number
+          entry?: string | null
+          extension: string
           fan_in?: number
           fan_out?: number
+          folder: string
+          hash?: string | null
           id?: string
+          lines?: number
           org_id: string
+          package?: string | null
           parsed?: boolean
           path: string
+          skip_detail?: string | null
           skip_reason?: string | null
         }
         Update: {
           analysis_id?: string
+          bytes?: number
+          entry?: string | null
+          extension?: string
           fan_in?: number
           fan_out?: number
+          folder?: string
+          hash?: string | null
           id?: string
+          lines?: number
           org_id?: string
+          package?: string | null
           parsed?: boolean
           path?: string
+          skip_detail?: string | null
           skip_reason?: string | null
         }
         Relationships: [
@@ -402,6 +447,7 @@ export type Database = {
           analysis_id: string
           file_id: string
           id: string
+          line: number
           method: string
           org_id: string
           path: string
@@ -410,6 +456,7 @@ export type Database = {
           analysis_id: string
           file_id: string
           id?: string
+          line: number
           method: string
           org_id: string
           path: string
@@ -418,6 +465,7 @@ export type Database = {
           analysis_id?: string
           file_id?: string
           id?: string
+          line?: number
           method?: string
           org_id?: string
           path?: string
@@ -451,7 +499,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      store_parse_result: {
+        Args: { parse_result: Json; target_analysis: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

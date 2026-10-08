@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Category } from "@/lib/canvas/categories";
 import { CategoryRail } from "./category-rail";
@@ -12,12 +13,18 @@ export function AnalysisShell({
   repository,
   files,
   categories,
+  framework,
+  runHref,
   map,
   detail,
 }: {
   repository: string;
   files: number;
   categories: readonly { category: Category; files: number }[];
+  /** The framework whose categories the rail shows, or null for generic kinds only. */
+  framework: string | null;
+  /** Where this analysis's run is shown (and re-run from), for a stored analysis. */
+  runHref?: string;
   map?: ReactNode;
   detail?: ReactNode;
 }) {
@@ -31,10 +38,18 @@ export function AnalysisShell({
           <p className="truncate font-mono font-medium" title={repository}>
             {repository}
           </p>
-          <p className="text-muted-foreground">
+          <p className="flex items-baseline justify-between gap-2 text-muted-foreground">
             {files === 1 ? "1 file" : `${files} files`}
+            {runHref && (
+              <Link href={runHref} className="hover:text-accent">
+                Run details
+              </Link>
+            )}
           </p>
         </div>
+        <p className="px-3 pt-2.5 text-[11px] tracking-wide text-faint-foreground uppercase">
+          {framework ?? "No framework detected"}
+        </p>
         <CategoryRail categories={categories} />
       </nav>
 

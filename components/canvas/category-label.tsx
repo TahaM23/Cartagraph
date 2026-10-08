@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, type Category } from "@/lib/canvas/categories";
+import type { Category } from "@/lib/canvas/categories";
 import { SWATCH } from "./swatch";
 
 /**
@@ -9,8 +9,8 @@ import { SWATCH } from "./swatch";
 export function CategoryLabel({ category, className = "" }: { category: Category; className?: string }) {
   return (
     <>
-      <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-[3px] ${SWATCH[category]}`} />
-      <span className={className}>{CATEGORY_LABELS[category]}</span>
+      <span aria-hidden="true" className={`size-2.5 shrink-0 rounded-[3px] ${SWATCH[category.kind]}`} />
+      <span className={className}>{category.label}</span>
     </>
   );
 }

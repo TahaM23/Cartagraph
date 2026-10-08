@@ -1,5 +1,5 @@
 -- Seed data for the two Clerk organizations in the development instance.
--- Nothing creates analyses yet, so these rows stand in for real ones. Every
+-- These rows stand in for real analyses on a fresh database. Every
 -- table gets rows in both organizations so isolation can be checked on all of
 -- them, not just the one the dashboard reads.
 --
@@ -15,6 +15,8 @@ insert into public.projects (id, org_id, repo_owner, repo_name, created_at) valu
   ('a0000000-0000-4000-8000-000000000001', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'vercel', 'next.js',          now() - interval '9 days'),
   ('a0000000-0000-4000-8000-000000000002', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'tanstack', 'query',          now() - interval '6 days'),
   ('a0000000-0000-4000-8000-000000000003', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'colinhacks', 'zod',          now() - interval '2 days'),
+  ('a0000000-0000-4000-8000-000000000004', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'microsoft', 'typescript',    now() - interval '3 days'),
+  ('a0000000-0000-4000-8000-000000000005', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'vitejs', 'vite',             now() - interval '1 minute'),
   ('b0000000-0000-4000-8000-000000000001', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'expressjs', 'express',       now() - interval '5 days'),
   ('b0000000-0000-4000-8000-000000000002', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'sindresorhus', 'got',        now() - interval '1 day')
 on conflict do nothing;
@@ -29,13 +31,13 @@ values
   ('a1000000-0000-4000-8000-000000000002', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a0000000-0000-4000-8000-000000000002',
    'complete', '8b1e4f7a2c5d9e0f3a6b8c1d4e7f0a2b5c8d1e4f', 412, 409, 1688, null,
    now() - interval '6 days', now() - interval '6 days', now() - interval '6 days' + interval '11 seconds'),
-  ('a1000000-0000-4000-8000-000000000003', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a0000000-0000-4000-8000-000000000001',
+  ('a1000000-0000-4000-8000-000000000003', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a0000000-0000-4000-8000-000000000004',
    'failed', 'c4d7e0f3a6b9c2d5e8f1a4b7c0d3e6f9a2b5c8d1', null, null, null, 'Repository exceeds the 5,000 file limit for a single request.',
    now() - interval '3 days', now() - interval '3 days', now() - interval '3 days' + interval '4 seconds'),
   ('a1000000-0000-4000-8000-000000000004', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a0000000-0000-4000-8000-000000000003',
    'parsing', '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b', 318, 140, null, null,
    now() - interval '2 minutes', now() - interval '2 minutes', null),
-  ('a1000000-0000-4000-8000-000000000005', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a0000000-0000-4000-8000-000000000002',
+  ('a1000000-0000-4000-8000-000000000005', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a0000000-0000-4000-8000-000000000005',
    'queued', null, null, null, null, null,
    now() - interval '30 seconds', null, null),
   -- Mohammad's Organization
@@ -50,14 +52,14 @@ on conflict do nothing;
 -- A handful of graph rows under one complete analysis per organization, so the
 -- remaining six tables are populated in both.
 
-insert into public.files (id, org_id, analysis_id, path, parsed, skip_reason, fan_in, fan_out) values
-  ('a2000000-0000-4000-8000-000000000001', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'src/index.ts',                 true,  null, 0, 1),
-  ('a2000000-0000-4000-8000-000000000002', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'src/queryClient.ts',           true,  null, 1, 1),
-  ('a2000000-0000-4000-8000-000000000003', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'src/utils.ts',                 true,  null, 1, 0),
-  ('a2000000-0000-4000-8000-000000000004', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'src/__generated__/schema.js',  false, 'Generated file', 0, 0),
-  ('b2000000-0000-4000-8000-000000000001', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'index.js',                     true,  null, 0, 1),
-  ('b2000000-0000-4000-8000-000000000002', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'lib/express.js',               true,  null, 1, 1),
-  ('b2000000-0000-4000-8000-000000000003', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'lib/router/index.js',          true,  null, 1, 0)
+insert into public.files (id, org_id, analysis_id, path, folder, extension, parsed, skip_reason, fan_in, fan_out) values
+  ('a2000000-0000-4000-8000-000000000001', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'src/index.ts',                 'src', '.ts', true,  null, 0, 1),
+  ('a2000000-0000-4000-8000-000000000002', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'src/queryClient.ts',           'src', '.ts', true,  null, 1, 1),
+  ('a2000000-0000-4000-8000-000000000003', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'src/utils.ts',                 'src', '.ts', true,  null, 1, 0),
+  ('a2000000-0000-4000-8000-000000000004', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'src/__generated__/schema.js',  'src/__generated__', '.js', false, 'Generated file', 0, 0),
+  ('b2000000-0000-4000-8000-000000000001', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'index.js',                     '.', '.js', true,  null, 0, 1),
+  ('b2000000-0000-4000-8000-000000000002', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'lib/express.js',               'lib', '.js', true,  null, 1, 1),
+  ('b2000000-0000-4000-8000-000000000003', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'lib/router/index.js',          'lib/router', '.js', true,  null, 1, 0)
 on conflict do nothing;
 
 insert into public.edges (org_id, analysis_id, source_file_id, target_file_id, kind, specifier)
@@ -69,9 +71,9 @@ select v.* from (values
 ) as v(org_id, analysis_id, source_file_id, target_file_id, kind, specifier)
 where not exists (select 1 from public.edges);
 
-insert into public.routes (id, org_id, analysis_id, file_id, method, path) values
-  ('a3000000-0000-4000-8000-000000000001', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'a2000000-0000-4000-8000-000000000001', 'GET', '/'),
-  ('b3000000-0000-4000-8000-000000000001', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'b2000000-0000-4000-8000-000000000003', 'GET', '/')
+insert into public.routes (id, org_id, analysis_id, file_id, method, path, line) values
+  ('a3000000-0000-4000-8000-000000000001', 'org_3KEmDacdx6GneH3GIWcBhRwkifB', 'a1000000-0000-4000-8000-000000000002', 'a2000000-0000-4000-8000-000000000001', 'GET', '/', 1),
+  ('b3000000-0000-4000-8000-000000000001', 'org_3KEmN678GQnexiO3AOSQZJBMEU8', 'b1000000-0000-4000-8000-000000000001', 'b2000000-0000-4000-8000-000000000003', 'GET', '/', 1)
 on conflict do nothing;
 
 insert into public.explanations (id, org_id, analysis_id, file_id, cache_key, model, body) values

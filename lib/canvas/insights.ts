@@ -3,7 +3,7 @@
 // counts. They explain the shape of the repository; they do not grade it.
 
 import type { FileNode } from "../parser/contract.ts";
-import { categoryOf } from "./categories.ts";
+import type { Rail } from "./categories.ts";
 import type { Neighbours } from "./detail.ts";
 import { shortestLoop, stronglyConnected } from "./graph.ts";
 import type { Model } from "./view.ts";
@@ -47,17 +47,6 @@ export interface Insights {
 
 const byPath = (a: FileNode, b: FileNode) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 
-/**
- * Whether something other than an import reaches this file: a framework
- * convention (a page, a route, middleware), a declared entry point, or the
- * tool that runs its kind of file — the test runner, the compiler for type
- * declarations, a tool reading its config, a person running a script. None of
- * that shows in the import graph, so no import is not evidence of no use.
- */
-export function reachedOtherwise(file: FileNode): boolean {
-  return file.entry !== null || file.role !== null || categoryOf(file) !== "source";
-}
-
 /** Nearest-rank quantile of an ascending list. */
 const quantile = (sorted: readonly number[], q: number) => sorted[Math.floor(q * (sorted.length - 1))];
 
@@ -74,11 +63,19 @@ export function unusualFanInThreshold(files: readonly FileNode[]): number {
   return Math.max(MIN_UNUSUAL_FAN_IN, Math.floor(2 ** (q3 + 1.5 * (q3 - q1)) - 1));
 }
 
-export function findInsights(model: Model, neighbours: Neighbours): Insights {
+/**
+ * Files nothing imports leave out whatever something other than an import
+ * reaches: a framework convention (a page, a route, middleware), a declared
+ * entry point, or the tool that runs its kind of file. None of that shows in
+ * the import graph, so no import is not evidence of no use. A component or a
+ * service is not reached that way: it has a role, but it still needs
+ * importing, so one nothing imports is reported. The rail says which is which.
+ */
+export function findInsights(model: Model, neighbours: Neighbours, rail: Rail): Insights {
   const files = [...model.files.values()];
   const threshold = unusualFanInThreshold(files);
   return {
-    unimported: files.filter((f) => f.fanIn === 0 && !reachedOtherwise(f)).sort(byPath),
+    unimported: files.filter((f) => f.fanIn === 0 && !rail.reached(f)).sort(byPath),
     unusualFanIn: files
       .filter((f) => f.fanIn > threshold)
       .sort((a, b) => b.fanIn - a.fanIn || byPath(a, b)),

@@ -42,14 +42,13 @@ function namedBindingsAllTypeOnly(
   return elements.length > 0 && elements.every((el) => el.isTypeOnly);
 }
 
+/** A file's syntax tree, parsed the one way every reader in the parser parses it. */
+export function parseSyntax(fileName: string, text: string): ts.SourceFile {
+  return ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, scriptKind(fileName));
+}
+
 export function extractImports(fileName: string, text: string): Extraction {
-  const sf = ts.createSourceFile(
-    fileName,
-    text,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKind(fileName),
-  );
+  const sf = parseSyntax(fileName, text);
 
   // parseDiagnostics is not in the public typings, but it is how the
   // compiler itself reports syntax errors for a single file.

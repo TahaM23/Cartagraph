@@ -14,14 +14,14 @@ export function CategoryRail({ categories }: { categories: readonly { category: 
   return (
     <ul className="py-1.5">
       {categories.map(({ category, files }) => {
-        const on = category === picked;
+        const on = category.id === picked;
         return (
-          <li key={category}>
+          <li key={category.id}>
             <button
               type="button"
               aria-pressed={on}
               title={on ? "Show every file again" : "Dim every file that is not in this category"}
-              onClick={() => setCategory(on ? null : category)}
+              onClick={() => setCategory(on ? null : category.id)}
               className={`flex w-full items-center gap-2.5 px-3 py-1 text-left text-[13px] ${
                 on ? "bg-accent/15 text-foreground" : picked ? "text-muted-foreground hover:bg-muted" : "hover:bg-muted"
               }`}
