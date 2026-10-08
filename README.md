@@ -26,7 +26,7 @@ Click any file to see what it imports, what imports it, and what breaks if it ch
 
 <br>
 
-![The map of a repository: folders as boxes, imports as lines. lib/parser/types.ts is selected; the 22 files that import it are lit in green, and the pane lists its blast radius of 31 files within two levels.](docs/screenshots/map.jpg)
+![The map of a repository: folders as boxes, imports as lines. lib/parser/contract.ts is selected; the 18 files that import it are lit in green, and the pane lists its blast radius of 40 files within two levels.](docs/screenshots/map.jpg)
 
 </div>
 
@@ -48,7 +48,7 @@ Most AI code tools let a model *describe* the structure. Cartograph doesn't. **E
 
 <div align="center">
 
-![Ask mode: asked "What breaks if I change this file?" with lib/parser/types.ts selected, the agent walks its dependents, finds 31, the same number as the map's blast radius, and lists them as links into the map.](docs/screenshots/ask.jpg)
+![Ask mode: asked "What breaks if I change this file?" with lib/parser/contract.ts selected, the agent walks its dependents, finds 40, the same number as the map's blast radius, and lists them as links into the map.](docs/screenshots/ask.jpg)
 
 </div>
 
@@ -57,7 +57,7 @@ Most AI code tools let a model *describe* the structure. Cartograph doesn't. **E
 - **Real parsing.** Uses the TypeScript compiler to read every import, including path aliases, barrel files and `require()`.
 - **Security in the database.** Row-level security is switched on for every table automatically, so a forgotten rule shows nothing instead of everything.
 - **An agent that can't be tricked.** It never knows which analysis it's reading. A signed, 30-minute pass does, and the database checks it. A "read someone else's data" prompt hidden in a repo has nothing to work with.
-- **One source of truth.** The agent's lookups run the same code that draws the map, so they always agree (31 and 31 above).
+- **One source of truth.** The agent's lookups run the same code that draws the map, so they always agree (40 and 40 above).
 - **AI you can measure.** Every model call is traced and cached, answers are checked for made-up file paths, and the agent has its own eval.
 
 ## How it works
