@@ -1,0 +1,297 @@
+<title>How Cartograph Works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; figures run full column width and scroll sideways on phones. */
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --fg: #171a20; --muted: #5a6170; --line: #c8cdd6;
+  --accent: #2f6fe4; --model: #b06f12; --model-bg: #fdf2df;
+  --sans: "Schibsted Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1116; --surface: #171a21; --fg: #e5e7ec; --muted: #9aa2b1; --line: #363c48;
+  --accent: #6b9bff; --model: #e2a646; --model-bg: #2a2114; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1116; --surface: #171a21; --fg: #e5e7ec; --muted: #9aa2b1; --line: #363c48;
+  --accent: #6b9bff; --model: #e2a646; --model-bg: #2a2114; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--sans); padding: 0 20px; }
+main { max-width: 1000px; margin: 0 auto; padding-block: 40px 64px; display: grid; gap: 28px; }
+.prose { max-width: 68ch; }
+h1 { font-size: 30px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 19px; margin: 12px 0 4px; text-wrap: balance; }
+p { margin: 0 0 10px; }
+code, .path { font-family: var(--mono); font-size: 0.86em; }
+.lede { color: var(--muted); font-size: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 18px; height: 12px; border-radius: 2px; border: 1.5px solid var(--line); background: var(--surface); }
+.sw.m { border-color: var(--model); background: var(--model-bg); }
+figure { margin: 0; display: grid; gap: 10px; }
+.scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; }
+svg { display: block; width: 100%; min-width: 760px; height: auto; color: var(--fg); }
+figcaption { color: var(--muted); font-size: 14px; max-width: 75ch; }
+
+/* SVG parts, coloured from the theme tokens */
+.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.4; }
+.grp { fill: none; stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.mdl { fill: var(--model-bg); stroke: var(--model); stroke-width: 1.6; }
+.t { fill: var(--fg); font: 600 13px var(--sans); }
+.s { fill: var(--muted); font: 11px var(--mono); }
+.l { fill: var(--muted); font: italic 11.5px var(--sans); }
+.g { fill: var(--muted); font: 600 11px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; }
+.ln { stroke: currentColor; stroke-width: 1.3; fill: none; }
+.tick { stroke: var(--line); stroke-width: 1.3; fill: none; }
+.mt { fill: var(--model); }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.tw { overflow-x: auto; }
+th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td:first-child { white-space: nowrap; font-weight: 600; }
+ul { margin: 0; padding-left: 20px; }
+li { margin-bottom: 6px; }
+</style>
+
+<main>
+  <header class="prose">
+    <h1>How Cartograph works</h1>
+    <p class="lede">Paste a public GitHub repository, and Cartograph parses it into a map of files and imports. Every box and line comes from parsing the code. The model only labels and explains; it never decides what is connected to what.</p>
+  </header>
+
+  <div class="legend" aria-label="Legend">
+    <span><i class="sw"></i> deterministic code</span>
+    <span><i class="sw m"></i> calls a model (OpenAI)</span>
+  </div>
+
+  <h2>1. The pieces and who talks to whom</h2>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 960 430" role="img" aria-label="System overview: the browser talks to the Next.js server, which reads Supabase as the user, writes with the secret key, and calls GitHub, OpenAI and LangSmith; Supabase Realtime pushes run progress back to the browser.">
+      <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+
+      <rect class="box" x="20" y="20" width="170" height="56" rx="4"/>
+      <text class="t" x="105" y="44" text-anchor="middle">Clerk</text>
+      <text class="s" x="105" y="62" text-anchor="middle">sign-in · organizations</text>
+
+      <rect class="box" x="280" y="20" width="150" height="56" rx="4"/>
+      <text class="t" x="355" y="44" text-anchor="middle">GitHub</text>
+      <text class="s" x="355" y="62" text-anchor="middle">public repos only</text>
+
+      <rect class="mdl" x="470" y="20" width="150" height="56" rx="4"/>
+      <text class="t" x="545" y="44" text-anchor="middle">OpenAI</text>
+      <text class="s" x="545" y="62" text-anchor="middle">label · explain</text>
+
+      <rect class="box" x="740" y="20" width="200" height="56" rx="4"/>
+      <text class="t" x="840" y="44" text-anchor="middle">LangSmith</text>
+      <text class="s" x="840" y="62" text-anchor="middle">traces · scores</text>
+
+      <rect class="box" x="20" y="150" width="170" height="130" rx="4"/>
+      <text class="t" x="105" y="178" text-anchor="middle">Browser</text>
+      <text class="s" x="105" y="202" text-anchor="middle">map + graph maths</text>
+      <text class="s" x="105" y="220" text-anchor="middle">run progress</text>
+      <text class="s" x="105" y="238" text-anchor="middle">detail pane</text>
+
+      <rect class="grp" x="260" y="110" width="380" height="210" rx="6"/>
+      <text class="g" x="276" y="132">Next.js server</text>
+      <rect class="box" x="280" y="145" width="340" height="44" rx="4"/>
+      <text class="t" x="450" y="163" text-anchor="middle">proxy.ts</text>
+      <text class="s" x="450" y="180" text-anchor="middle">signed out → /sign-in</text>
+      <rect class="box" x="280" y="200" width="340" height="44" rx="4"/>
+      <text class="t" x="450" y="218" text-anchor="middle">pages · server actions</text>
+      <text class="s" x="450" y="235" text-anchor="middle">analyse · re-run · explain</text>
+      <rect class="box" x="280" y="255" width="340" height="44" rx="4"/>
+      <text class="t" x="450" y="273" text-anchor="middle">after(): the pipeline run</text>
+      <text class="s" x="450" y="290" text-anchor="middle">fetch → select → parse → label → store</text>
+
+      <rect class="box" x="740" y="150" width="200" height="150" rx="4"/>
+      <text class="t" x="840" y="176" text-anchor="middle">Supabase</text>
+      <text class="s" x="840" y="198" text-anchor="middle">Postgres, RLS by org</text>
+      <text class="s" x="840" y="216" text-anchor="middle">graph + AI caches</text>
+      <line class="tick" x1="756" y1="234" x2="924" y2="234"/>
+      <text class="s" x="840" y="258" text-anchor="middle">Realtime broadcast</text>
+      <text class="s" x="840" y="276" text-anchor="middle">analysis:&lt;id&gt;</text>
+
+      <line class="ln" x1="105" y1="76" x2="105" y2="147" marker-end="url(#a1)"/>
+      <text class="l" x="113" y="108">token carries</text>
+      <text class="l" x="113" y="122">the org claim</text>
+
+      <line class="ln" x1="190" y1="167" x2="277" y2="167" marker-end="url(#a1)"/>
+      <text class="l" x="233" y="159" text-anchor="middle">requests</text>
+
+      <line class="ln" x1="355" y1="110" x2="355" y2="79" marker-end="url(#a1)"/>
+      <text class="l" x="362" y="99">archive, file at commit</text>
+      <line class="ln" x1="545" y1="110" x2="545" y2="79" marker-end="url(#a1)"/>
+      <text class="l" x="552" y="99">nano · mini</text>
+      <path class="ln" d="M640 130 H840 V79" marker-end="url(#a1)"/>
+      <text class="l" x="740" y="123" text-anchor="middle">every AI call traced</text>
+
+      <line class="ln" x1="620" y1="222" x2="737" y2="210" marker-end="url(#a1)"/>
+      <text class="l" x="680" y="205" text-anchor="middle">reads as the user</text>
+      <line class="ln" x1="620" y1="277" x2="737" y2="270" marker-end="url(#a1)"/>
+      <text class="l" x="680" y="292" text-anchor="middle">writes, secret key</text>
+
+      <path class="ln" d="M840 300 V395 H105 V283" marker-end="url(#a1)"/>
+      <text class="l" x="470" y="388" text-anchor="middle">stage events, pushed live while a run is going</text>
+    </svg>
+    </div>
+    <figcaption>Clerk gives the browser a session token that carries the organization. Supabase's row-level security reads that claim, so a page reading as the user only ever gets its own organization's rows. The pipeline outlives the request, so it writes with the secret key instead of the user's token, which would expire part-way through a large repository.</figcaption>
+  </figure>
+
+  <h2>2. Analysing a repository</h2>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 960 320" role="img" aria-label="The analysis run: five stages, fetch, select, parse, label and store. Only label calls a model. Each stage writes its progress to the analyses row, which Realtime pushes to the progress page; the map opens on completion.">
+      <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+
+      <rect class="box" x="20" y="10" width="160" height="44" rx="4"/>
+      <text class="t" x="100" y="29" text-anchor="middle">GitHub</text>
+      <text class="s" x="100" y="45" text-anchor="middle">commit sha · tarball</text>
+      <rect class="mdl" x="590" y="10" width="160" height="44" rx="4"/>
+      <text class="t" x="670" y="29" text-anchor="middle">OpenAI nano</text>
+      <text class="s" x="670" y="45" text-anchor="middle">cached per file hash</text>
+
+      <line class="ln" x1="100" y1="54" x2="100" y2="107" marker-end="url(#a2)"/>
+      <text class="l" x="108" y="86">download</text>
+      <line class="ln" x1="670" y1="54" x2="670" y2="107" marker-end="url(#a2)"/>
+      <text class="l" x="678" y="86">≤ 400 files a run</text>
+
+      <rect class="box" x="20" y="110" width="160" height="62" rx="4"/>
+      <text class="t" x="100" y="136" text-anchor="middle">fetch</text>
+      <text class="s" x="100" y="156" text-anchor="middle">commit + archive</text>
+      <rect class="box" x="210" y="110" width="160" height="62" rx="4"/>
+      <text class="t" x="290" y="136" text-anchor="middle">select</text>
+      <text class="s" x="290" y="156" text-anchor="middle">walk, ≤ 5,000 files</text>
+      <rect class="box" x="400" y="110" width="160" height="62" rx="4"/>
+      <text class="t" x="480" y="136" text-anchor="middle">parse</text>
+      <text class="s" x="480" y="156" text-anchor="middle">imports → edges</text>
+      <rect class="mdl" x="590" y="110" width="160" height="62" rx="4"/>
+      <text class="t" x="670" y="136" text-anchor="middle">label</text>
+      <text class="s" x="670" y="156" text-anchor="middle">files no rule named</text>
+      <rect class="box" x="780" y="110" width="160" height="62" rx="4"/>
+      <text class="t" x="860" y="136" text-anchor="middle">store</text>
+      <text class="s" x="860" y="156" text-anchor="middle">one transaction</text>
+
+      <line class="ln" x1="180" y1="141" x2="207" y2="141" marker-end="url(#a2)"/>
+      <line class="ln" x1="370" y1="141" x2="397" y2="141" marker-end="url(#a2)"/>
+      <line class="ln" x1="560" y1="141" x2="587" y2="141" marker-end="url(#a2)"/>
+      <line class="ln" x1="750" y1="141" x2="777" y2="141" marker-end="url(#a2)"/>
+
+      <path class="tick" d="M100 172 V200 M290 172 V200 M480 172 V200 M670 172 V200 M860 172 V200 M100 200 H860"/>
+      <line class="ln" x1="250" y1="200" x2="250" y2="247" marker-end="url(#a2)"/>
+      <text class="l" x="258" y="228">each stage writes</text>
+
+      <rect class="box" x="150" y="250" width="200" height="50" rx="4"/>
+      <text class="t" x="250" y="271" text-anchor="middle">analyses row</text>
+      <text class="s" x="250" y="288" text-anchor="middle">status · stage · message</text>
+      <rect class="box" x="470" y="250" width="200" height="50" rx="4"/>
+      <text class="t" x="570" y="271" text-anchor="middle">progress page</text>
+      <text class="s" x="570" y="288" text-anchor="middle">/analyses/[id]</text>
+      <rect class="box" x="760" y="250" width="180" height="50" rx="4"/>
+      <text class="t" x="850" y="271" text-anchor="middle">map</text>
+      <text class="s" x="850" y="288" text-anchor="middle">/analyses/[id]/map</text>
+
+      <line class="ln" x1="350" y1="275" x2="467" y2="275" marker-end="url(#a2)"/>
+      <text class="l" x="409" y="267" text-anchor="middle">trigger → realtime</text>
+      <line class="ln" x1="670" y1="275" x2="757" y2="275" marker-end="url(#a2)"/>
+      <text class="l" x="714" y="267" text-anchor="middle">complete</text>
+    </svg>
+    </div>
+    <figcaption>Submitting the form inserts a queued row and redirects; the run then starts in <code>after()</code>. Framework adapters (Next.js, Nest, Express, React, Vite, Docusaurus) give files their roles during parse. Labelling is optional: if the model is unavailable, the graph is stored anyway. A re-run claims the row by its start time, so a stale run that wakes up can't overwrite a newer one.</figcaption>
+  </figure>
+
+  <h2>3. Explaining a file</h2>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 980 330" role="img" aria-label="Explaining a file: inside one traced run, read the neighbours, build a cache key, look it up; a hit answers with no model call, a miss fetches the file at the analysed commit, calls the model and checks the answer for invented paths. Alongside, a freshness check compares the analysed commit with GitHub's head.">
+      <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+
+      <rect class="box" x="20" y="120" width="140" height="60" rx="4"/>
+      <text class="t" x="90" y="146" text-anchor="middle">explainSubject</text>
+      <text class="s" x="90" y="164" text-anchor="middle">server action</text>
+
+      <rect class="grp" x="185" y="20" width="635" height="200" rx="6"/>
+      <text class="g" x="198" y="208">One traced run in LangSmith</text>
+
+      <rect class="box" x="200" y="45" width="130" height="50" rx="4"/>
+      <text class="t" x="265" y="66" text-anchor="middle">neighbours</text>
+      <text class="s" x="265" y="83" text-anchor="middle">user client, RLS</text>
+      <rect class="box" x="350" y="45" width="120" height="50" rx="4"/>
+      <text class="t" x="410" y="66" text-anchor="middle">cache key</text>
+      <text class="s" x="410" y="83" text-anchor="middle">sha256(inputs)</text>
+      <rect class="box" x="490" y="45" width="130" height="50" rx="4"/>
+      <text class="t" x="555" y="66" text-anchor="middle">cache lookup</text>
+      <text class="s" x="555" y="83" text-anchor="middle">explanations</text>
+
+      <rect class="box" x="490" y="140" width="130" height="50" rx="4"/>
+      <text class="t" x="555" y="161" text-anchor="middle">fetch at commit</text>
+      <text class="s" x="555" y="178" text-anchor="middle">hash must match</text>
+      <rect class="mdl" x="635" y="140" width="75" height="50" rx="4"/>
+      <text class="t" x="672" y="161" text-anchor="middle">model</text>
+      <text class="s" x="672" y="178" text-anchor="middle">mini</text>
+      <rect class="box" x="725" y="140" width="85" height="50" rx="4"/>
+      <text class="t" x="767" y="161" text-anchor="middle">path check</text>
+      <text class="s" x="767" y="178" text-anchor="middle">invented?</text>
+
+      <rect class="box" x="845" y="45" width="120" height="265" rx="4"/>
+      <text class="t" x="905" y="72" text-anchor="middle">detail pane</text>
+      <text class="s" x="905" y="92" text-anchor="middle">explanation</text>
+      <text class="s" x="905" y="108" text-anchor="middle">+ freshness</text>
+
+      <rect class="box" x="200" y="260" width="420" height="50" rx="4"/>
+      <text class="t" x="410" y="281" text-anchor="middle">freshness check (alongside, not traced)</text>
+      <text class="s" x="410" y="299" text-anchor="middle">analysed commit vs GitHub head · file hash vs stored</text>
+
+      <path class="ln" d="M160 150 H180 V70 H197" marker-end="url(#a3)"/>
+      <path class="ln" d="M90 180 V285 H197" marker-end="url(#a3)"/>
+      <line class="ln" x1="330" y1="70" x2="347" y2="70" marker-end="url(#a3)"/>
+      <line class="ln" x1="470" y1="70" x2="487" y2="70" marker-end="url(#a3)"/>
+      <line class="ln" x1="620" y1="70" x2="842" y2="70" marker-end="url(#a3)"/>
+      <text class="l" x="731" y="62" text-anchor="middle">hit: no model call</text>
+      <line class="ln" x1="555" y1="95" x2="555" y2="137" marker-end="url(#a3)"/>
+      <text class="l" x="562" y="121">miss</text>
+      <line class="ln" x1="620" y1="165" x2="632" y2="165" marker-end="url(#a3)"/>
+      <line class="ln" x1="710" y1="165" x2="722" y2="165" marker-end="url(#a3)"/>
+      <line class="ln" x1="810" y1="165" x2="842" y2="165" marker-end="url(#a3)"/>
+      <line class="ln" x1="620" y1="285" x2="842" y2="285" marker-end="url(#a3)"/>
+      <text class="l" x="731" y="277" text-anchor="middle">fresh · moved on · file changed</text>
+    </svg>
+    </div>
+    <figcaption>The cache key covers the model, the prompt version, the file's hash and its neighbours, so an unchanged file answers instantly across re-runs and analyses. A cache hit still shows in LangSmith, as a run with no model call in it. A fresh answer is checked for file paths the model was never shown, and the run is scored with the result before it's cached.</figcaption>
+  </figure>
+
+  <section class="prose">
+    <h2>4. The map itself</h2>
+    <p>The map page reads the stored files, edges and routes once, through the user's client. Everything after that happens in the browser as pure functions over the edge list: folding folders into about two dozen boxes, blast radius and dependency chains two levels out, and the insights panel. None of it needs a network request, so it all appears instantly.</p>
+
+    <h2>5. Evals</h2>
+    <p>These are scripts you run from the terminal, not part of the app. They read the same traces from LangSmith:</p>
+    <ul>
+      <li><code>pnpm eval:paths</code> runs the invented-path check over recent real explanations. This is set membership, with no model involved.</li>
+      <li><code>pnpm eval:roles</code> hides the role on files a convention already identified, asks the model for it, and scores the answers against the known roles.</li>
+      <li><code>pnpm eval:prompts</code> runs the current and the previous explanation prompt as two experiments, with a model as judge.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Where each part lives</h2>
+    <div class="tw">
+    <table>
+      <thead><tr><th>Part</th><th>Files</th></tr></thead>
+      <tbody>
+        <tr><td>Auth gate</td><td><span class="path">proxy.ts</span>, <span class="path">app/sign-in</span>, <span class="path">app/sign-up</span></td></tr>
+        <tr><td>Pages &amp; actions</td><td><span class="path">app/(app)/…</span>, <span class="path">app/(app)/analyses/actions.ts</span></td></tr>
+        <tr><td>Pipeline</td><td><span class="path">lib/pipeline/</span> (start, run, github, stages)</td></tr>
+        <tr><td>Parser</td><td><span class="path">lib/parser/</span>, with framework knowledge in <span class="path">lib/parser/adapters/</span></td></tr>
+        <tr><td>AI</td><td><span class="path">lib/ai/client.ts</span> (the only OpenAI client, traced), <span class="path">lib/ai/cache.ts</span></td></tr>
+        <tr><td>Explain &amp; label</td><td><span class="path">lib/explain/</span> (explain, label, freshness, invented)</td></tr>
+        <tr><td>Map maths</td><td><span class="path">lib/canvas/</span> (fold, graph, insights, layout)</td></tr>
+        <tr><td>UI</td><td><span class="path">components/canvas/</span>, <span class="path">components/analysis/</span></td></tr>
+        <tr><td>Database</td><td><span class="path">supabase/migrations/</span></td></tr>
+        <tr><td>Evals</td><td><span class="path">evals/</span>, with shared env loading in <span class="path">lib/scripts/env.ts</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+</main>
