@@ -71,7 +71,12 @@ export async function askRoles(batch: readonly LabelSubject[]): Promise<Map<stri
     reasoning: { effort: "low" },
     text: { format: { type: "json_schema", name: "role_labels", strict: true, schema: LABEL_SCHEMA } },
   });
-  const answer = Answer.safeParse(JSON.parse(response.output_text || "{}"));
+  // A cut-off or malformed answer costs this batch, not the run.
+  let parsed: unknown = {};
+  try {
+    parsed = JSON.parse(response.output_text || "{}");
+  } catch {}
+  const answer = Answer.safeParse(parsed);
   const asked = new Set(batch.map((c) => c.path));
   const roles = new Map<string, ModelRole>();
   if (!answer.success) return roles;

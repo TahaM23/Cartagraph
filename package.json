@@ -11,10 +11,12 @@
     "analyse": "node lib/pipeline/cli.ts",
     "eval:paths": "node evals/invented-paths.ts",
     "eval:roles": "node evals/roles.ts",
-    "eval:prompts": "node evals/prompts.ts"
+    "eval:prompts": "node evals/prompts.ts",
+    "eval:agent": "node evals/agent.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.10",
+    "@langchain/langgraph-sdk": "1.12.0",
     "@supabase/supabase-js": "^2.117.2",
     "ignore": "^7.0.12",
     "langsmith": "^0.10.8",

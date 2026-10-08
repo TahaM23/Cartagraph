@@ -152,6 +152,7 @@ export async function explainSubject(analysisId: string, subject: unknown): Prom
 
 /** The hash the parser stored for a file: what the repository's copy is compared against. */
 async function fileHash(db: Awaited<ReturnType<typeof createServerSupabase>>, analysisId: string, path: string) {
-  const { data } = await db.from("files").select("path, hash").eq("analysis_id", analysisId).eq("path", path).maybeSingle();
+  const { data, error } = await db.from("files").select("path, hash").eq("analysis_id", analysisId).eq("path", path).maybeSingle();
+  if (error) throw new Error(`Reading the file's hash failed: ${error.message}`);
   return data;
 }

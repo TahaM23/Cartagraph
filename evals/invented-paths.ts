@@ -164,6 +164,8 @@ function splice(answers: readonly Answer[]): boolean {
 async function main() {
   const days = Number(values.days);
   const limit = Number(values.limit);
+  if (!Number.isFinite(days) || days <= 0) throw new Error(`--days must be a positive number, not "${values.days}".`);
+  if (!Number.isInteger(limit) || limit <= 0) throw new Error(`--limit must be a positive whole number, not "${values.limit}".`);
   const answers = await recentAnswers(days, limit);
   console.log(`project  ${tracingProject()}`);
   console.log(`window   last ${days} day(s), at most ${limit} model calls`);

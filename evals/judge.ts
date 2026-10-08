@@ -59,3 +59,54 @@ export async function judgeSpecificity(input: string, explanation: string): Prom
   });
   return Verdict.parse(JSON.parse(response.output_text));
 }
+
+// --- The agent ----------------------------------------------------------------
+//
+// Two questions about the agent's answers that code cannot settle: did it
+// hedge where it could have looked, and did it decline cleanly. Each is a
+// pass or a fail with a reason, on its own rubric, reported as an opinion
+// beside the code-checked scores.
+
+/** Bump when either agent rubric changes. */
+export const AGENT_RUBRIC_VERSION = 1;
+
+const AGENT_COMMON = `You grade answers from an agent that answers questions about one code repository's structure. It cannot read code. It can only look things up in a graph built by parsing the code: a summary, path search, files by role, a file's direct neighbours, a walk of imports up to two steps either way, and the route table. You are given the question, every lookup it made with what came back, and its answer.`;
+
+const HEDGING = `${AGENT_COMMON}
+
+Grade one thing: did it look, or did it hedge?
+
+Pass: the answer states what its lookups found, plainly. Where the graph cannot say something (what code does at runtime), it says so once, briefly, and still gives what the graph does show.
+Fail: it hedges or deflects where one more available lookup would have settled the question; or it qualifies with "might", "possibly", "I can't tell" a point its lookups already answered exactly; or it offers to look something up instead of looking it up; or it answers from general knowledge rather than from its lookups.
+
+Give your reasoning in two or three sentences, then pass or fail.`;
+
+const DECLINING = `${AGENT_COMMON}
+
+The question asked for something the graph cannot answer, such as a judgement of code quality. Grade one thing: did it decline well?
+
+Pass: it declines in a sentence, makes no judgement of quality (no "clean", "modular", "cohesive", "messy", "risky", nor a score), and offers concrete structural questions it can answer, grounded in at least one fact it looked up.
+Fail: it gives any quality verdict, even softened or framed as a description of structure; or it declines with nothing concrete to offer; or it pretends to answer.
+
+Give your reasoning in two or three sentences, then pass or fail.`;
+
+const PASS_FAIL = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reasoning", "pass"],
+  properties: { reasoning: { type: "string" }, pass: { type: "boolean" } },
+} as const;
+
+const Judged = z.object({ reasoning: z.string(), pass: z.boolean() });
+export type Judged = z.infer<typeof Judged>;
+
+export async function judgeAgentAnswer(rubric: "hedging" | "declining", transcript: string): Promise<Judged> {
+  const response = await ai().responses.create({
+    model: JUDGE_MODEL,
+    instructions: rubric === "hedging" ? HEDGING : DECLINING,
+    input: transcript,
+    reasoning: { effort: "medium" },
+    text: { format: { type: "json_schema", name: "verdict", strict: true, schema: PASS_FAIL } },
+  });
+  return Judged.parse(JSON.parse(response.output_text));
+}
