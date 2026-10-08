@@ -196,3 +196,28 @@ async function extractArchive(
   );
   return received;
 }
+
+/** A source file is never fetched past this; the parser skips anything near it anyway. */
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
+
+/**
+ * One file's bytes at an exact commit, or null when the commit has no such
+ * file. Served by GitHub's raw host, which does not count against the API's
+ * unauthenticated limit.
+ */
+export async function fetchFileAt(repo: RepositoryRef, sha: string, filePath: string): Promise<Buffer | null> {
+  const encoded = filePath.split("/").map(encodeURIComponent).join("/");
+  const url = `https://raw.githubusercontent.com/${repo.owner}/${repo.name}/${sha}/${encoded}`;
+  return withTimeout(`Fetching ${filePath} at ${sha.slice(0, 7)}`, API_TIMEOUT_MS, async (signal) => {
+    const response = await fetch(url, { headers: { "user-agent": HEADERS["user-agent"] }, signal });
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      throw new RunError(`GitHub returned ${response.status} for ${filePath} at ${sha.slice(0, 7)}.`);
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > MAX_FILE_BYTES) {
+      throw new RunError(`${filePath} is over ${MAX_FILE_BYTES / 1024 / 1024} MB at ${sha.slice(0, 7)}.`);
+    }
+    return bytes;
+  });
+}

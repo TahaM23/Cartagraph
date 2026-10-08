@@ -8,6 +8,7 @@ import { groupUnit, rowUnit } from "@/lib/canvas/view";
 import type { Route } from "@/lib/parser/contract";
 import { useAnalysis } from "./analysis";
 import { CategoryLabel } from "./category-label";
+import { Explanation } from "./explanation";
 import { SWATCH } from "./swatch";
 
 type Tab = "structure" | "explanation";
@@ -237,8 +238,9 @@ function FileDetail({
   reach: Reach;
   setReach: (r: Reach) => void;
 }) {
-  const { model, neighbours, rail, routes, focusFile, focusDir, hover } = useAnalysis();
+  const { model, neighbours, rail, labels, routes, focusFile, focusDir, hover } = useAnalysis();
   const file = model.files.get(path)!;
+  const label = labels.get(path);
   const declared = routes.filter((r) => r.file === path);
   const imports = neighbours.imports.get(path)!;
   const importedBy = neighbours.importedBy.get(path)!;
@@ -267,6 +269,14 @@ function FileDetail({
                 <CategoryLabel category={category} />
                 {file.role && file.role.toLowerCase() !== category.label.toLowerCase() && (
                   <span className="text-muted-foreground">· {file.role}</span>
+                )}
+                {label && (
+                  <span
+                    className="text-muted-foreground"
+                    title="No framework convention identified this file, so a model labelled it from its code. Labels never decide categories, routes or entry points."
+                  >
+                    · {label} <span className="text-faint-foreground">(labelled)</span>
+                  </span>
                 )}
               </dd>
               {file.entry && (
@@ -346,7 +356,7 @@ function FileDetail({
             </Section>
           </>
         ) : (
-          <Explanation subject="file" />
+          <Explanation unit={rowUnit(path)} />
         )}
       </Tabs>
     </>
@@ -455,22 +465,10 @@ function FolderDetail({ dir, tab, setTab }: { dir: string; tab: Tab; setTab: (t:
             ))}
           </>
         ) : (
-          <Explanation subject="folder" />
+          <Explanation unit={groupUnit(dir)} />
         )}
       </Tabs>
     </>
-  );
-}
-
-function Explanation({ subject }: { subject: "file" | "folder" }) {
-  return (
-    <div className="px-4 py-6">
-      <p className="font-medium">No explanation yet</p>
-      <p className="mt-1 text-muted-foreground">
-        An explanation of this {subject} will be written from its code and the files it is really connected to.
-        Nothing writes them yet; Structure above is everything the parser knows.
-      </p>
-    </div>
   );
 }
 

@@ -27,7 +27,14 @@ async function readAll<T>(
 }
 
 export interface StoredGraph {
+  /** Each file's `role` is the one convention gave it; a model's label is in `labels`, never there. */
   files: FileNode[];
+  /**
+   * Path → the role a model gave a file no convention identified. Kept apart
+   * from `role` because roles decide the rail, the routes and what counts as
+   * reached, and a model's reading of a file decides none of that.
+   */
+  labels: Record<string, string>;
   edges: Pick<Edge, "source" | "target">[];
   routes: Route[];
 }
@@ -43,7 +50,7 @@ export async function loadStoredGraph(db: Db, analysisId: string): Promise<Store
         .range(from, to),
     ),
     readAll("file roles", (from, to) =>
-      db.from("file_roles").select("file_id, role").eq("analysis_id", analysisId).order("id").range(from, to),
+      db.from("file_roles").select("file_id, role, source").eq("analysis_id", analysisId).order("id").range(from, to),
     ),
     readAll("edges", (from, to) =>
       db
@@ -63,7 +70,7 @@ export async function loadStoredGraph(db: Db, analysisId: string): Promise<Store
     ),
   ]);
 
-  const roles = new Map(roleRows.map((r) => [r.file_id, r.role]));
+  const roles = new Map(roleRows.filter((r) => r.source === "convention").map((r) => [r.file_id, r.role]));
   const paths = new Map(fileRows.map((f) => [f.id, f.path]));
 
   // Validated against the contract, like any other read of a parse result.
@@ -103,5 +110,11 @@ export async function loadStoredGraph(db: Db, analysisId: string): Promise<Store
     // The order the parser wrote them in.
     .sort((a, b) => byString(a.path, b.path) || byString(a.method, b.method) || byString(a.file, b.file) || a.line - b.line);
 
-  return { files, edges, routes };
+  const labels: Record<string, string> = {};
+  for (const r of roleRows) {
+    const path = paths.get(r.file_id);
+    if (r.source === "model" && path) labels[path] = r.role;
+  }
+
+  return { files, labels, edges, routes };
 }

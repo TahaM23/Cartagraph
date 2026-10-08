@@ -169,50 +169,30 @@ export type Database = {
       }
       explanations: {
         Row: {
-          analysis_id: string
           body: string
           cache_key: string
           created_at: string
-          file_id: string
-          id: string
           model: string
           org_id: string
+          subject: string
         }
         Insert: {
-          analysis_id: string
           body: string
           cache_key: string
           created_at?: string
-          file_id: string
-          id?: string
           model: string
           org_id: string
+          subject: string
         }
         Update: {
-          analysis_id?: string
           body?: string
           cache_key?: string
           created_at?: string
-          file_id?: string
-          id?: string
           model?: string
           org_id?: string
+          subject?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "explanations_analysis_id_org_id_fkey"
-            columns: ["analysis_id", "org_id"]
-            isOneToOne: false
-            referencedRelation: "analyses"
-            referencedColumns: ["id", "org_id"]
-          },
-          {
-            foreignKeyName: "explanations_file_id_analysis_id_fkey"
-            columns: ["file_id", "analysis_id"]
-            isOneToOne: false
-            referencedRelation: "files"
-            referencedColumns: ["id", "analysis_id"]
-          },
           {
             foreignKeyName: "explanations_org_id_fkey"
             columns: ["org_id"]
@@ -442,6 +422,38 @@ export type Database = {
           },
         ]
       }
+      role_labels: {
+        Row: {
+          cache_key: string
+          created_at: string
+          model: string
+          org_id: string
+          role: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          model: string
+          org_id: string
+          role: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          model?: string
+          org_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_labels_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       routes: {
         Row: {
           analysis_id: string
@@ -499,8 +511,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      neighbourhood: {
+        Args: { member_paths: string[]; target_analysis: string }
+        Returns: Json
+      }
       store_parse_result: {
-        Args: { claimed_started_at: string; parse_result: Json; target_analysis: string }
+        Args: {
+          claimed_started_at: string
+          model_roles: Json
+          parse_result: Json
+          target_analysis: string
+        }
         Returns: undefined
       }
     }

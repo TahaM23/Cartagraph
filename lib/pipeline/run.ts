@@ -14,6 +14,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { AiUnavailable, flushTraces } from "../ai/client.ts";
+import { kindOf } from "../canvas/categories.ts";
+import { labelFiles, type LabelCandidate } from "../explain/label.ts";
 import { ADAPTERS } from "../parser/adapters/index.ts";
 import { checkInvariants, parseWalk, ParseResult, walkRepository } from "../parser/index.ts";
 import type { AdminSupabase } from "../supabase/admin.ts";
@@ -92,15 +95,72 @@ async function write(
   if (data.length === 0) throw new Superseded(`Analysis ${id} was claimed by a newer run.`);
 }
 
-async function repositoryOf(db: AdminSupabase, id: string): Promise<RepositoryRef> {
+async function repositoryOf(db: AdminSupabase, id: string): Promise<{ repo: RepositoryRef; orgId: string }> {
   const { data, error } = await db
     .from("analyses")
-    .select("project:projects(repo_owner, repo_name)")
+    .select("org_id, project:projects(repo_owner, repo_name)")
     .eq("id", id)
     .single();
   if (error) throw new Error(`Reading analysis ${id} failed: ${error.message}`);
   if (!data.project) throw new Error(`Analysis ${id} has no project.`);
-  return { owner: data.project.repo_owner, name: data.project.repo_name };
+  return { repo: { owner: data.project.repo_owner, name: data.project.repo_name }, orgId: data.org_id };
+}
+
+/**
+ * Source files no convention gave a role, each with its text and its
+ * neighbours. Tests, declarations, config and scripts already say what they
+ * are by their names; a skipped or unreadable file has no code to read.
+ */
+function labelCandidates(result: ParseResult, directory: string): LabelCandidate[] {
+  const imports = new Map<string, Set<string>>();
+  const importedBy = new Map<string, Set<string>>();
+  for (const e of result.edges) {
+    if (!imports.has(e.source)) imports.set(e.source, new Set());
+    if (!importedBy.has(e.target)) importedBy.set(e.target, new Set());
+    imports.get(e.source)!.add(e.target);
+    importedBy.get(e.target)!.add(e.source);
+  }
+  const sorted = (set: Set<string> | undefined) => [...(set ?? [])].sort();
+  return result.files
+    .filter((f) => f.parsed && f.role === null && f.hash !== null && kindOf(f) === "source")
+    .map((f) => ({
+      path: f.path,
+      hash: f.hash!,
+      text: fs.readFileSync(path.join(directory, f.path), "utf8"),
+      imports: sorted(imports.get(f.path)),
+      importedBy: sorted(importedBy.get(f.path)),
+    }));
+}
+
+/**
+ * Labels what it can. Labels are a reading of the code, not part of its
+ * structure, so a run without them is still a complete run: a missing key or
+ * a failed call leaves the files unlabelled and the graph is stored anyway.
+ */
+async function label(
+  db: AdminSupabase,
+  orgId: string,
+  directory: string,
+  result: ParseResult,
+  report: RunReporter,
+): Promise<{ path: string; role: string }[]> {
+  const candidates = labelCandidates(result, directory);
+  if (candidates.length === 0) {
+    await report.stage("label", "Every source file has a role by convention");
+    return [];
+  }
+  await report.stage("label", `Labelling ${count(candidates.length, "file")} no convention identified`);
+  try {
+    const { roles, cached, asked, deferred } = await labelFiles({ db, orgId, candidates });
+    console.log(
+      `labelled ${roles.size} of ${candidates.length} files (${cached} cached, ${asked} asked, ${deferred} left for a later run)`,
+    );
+    return [...roles].map(([p, role]) => ({ path: p, role }));
+  } catch (error) {
+    const why = error instanceof AiUnavailable ? error.message : `labelling failed: ${error instanceof Error ? error.message : String(error)}`;
+    console.warn(`Storing without role labels; ${why}`);
+    return [];
+  }
 }
 
 /**
@@ -136,20 +196,22 @@ export async function runAnalysis(db: AdminSupabase, id: string): Promise<void> 
       .eq("id", id);
     if (claimError) throw new Error(`Updating analysis ${id} failed: ${claimError.message}`);
 
-    const repo = await repositoryOf(db, id);
+    const { repo, orgId } = await repositoryOf(db, id);
     const { result } = await fetchAndParse(repo, directory, report, (sha) =>
       write(db, id, startedAt, { commit_sha: sha }),
     );
+    const modelRoles = await label(db, orgId, directory, result, report);
 
     await report.stage(
       "store",
       `Storing ${count(result.files.length, "file")}, ${count(result.edges.length, "edge")} and ${count(result.routes.length, "route")}`,
     );
-    // Graph, coverage and the complete status land in one transaction.
+    // Graph, labels, coverage and the complete status land in one transaction.
     const { error } = await db.rpc("store_parse_result", {
       target_analysis: id,
       parse_result: result,
       claimed_started_at: startedAt,
+      model_roles: modelRoles,
     });
     if (error?.code === SUPERSEDED_CODE) throw new Superseded(error.message);
     if (error) throw new Error(`Storing the result failed: ${error.message}`);
@@ -178,5 +240,6 @@ export async function runAnalysis(db: AdminSupabase, id: string): Promise<void> 
     }
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
+    await flushTraces().catch((error) => console.warn("Sending traces failed:", error));
   }
 }
