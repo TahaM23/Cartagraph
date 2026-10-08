@@ -11,7 +11,8 @@
     "analyse": "node lib/pipeline/cli.ts",
     "eval:paths": "node evals/invented-paths.ts",
     "eval:roles": "node evals/roles.ts",
-    "eval:prompts": "node evals/prompts.ts"
+    "eval:prompts": "node evals/prompts.ts",
+    "eval:agent": "node evals/agent.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.10",

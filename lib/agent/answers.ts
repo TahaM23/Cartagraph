@@ -117,15 +117,19 @@ export const ANSWERS = {
   },
 
   search: {
-    input: z.object({ query: z.string().min(1).max(200), limit: z.number().int().min(1).max(LIST_CAP).optional() }),
-    answer(p: Prepared, { query, limit = 25 }: { query: string; limit?: number }) {
-      const q = query.toLowerCase();
-      const matches = [...p.model.files.keys()]
-        .filter((f) => f.toLowerCase().includes(q))
-        // Shorter paths first: the closer the match is to the whole path, the likelier it is the one meant.
-        .sort((a, b) => a.length - b.length || (a < b ? -1 : 1));
+    input: z.object({ query: z.string().max(200).optional(), limit: z.number().int().min(1).max(LIST_CAP).optional() }),
+    answer(p: Prepared, { query = "", limit = 25 }: { query?: string; limit?: number }) {
+      const q = query.trim().toLowerCase();
+      // No query lists every file, in path order: asked which files there are,
+      // the agent has a real list to give rather than one to make up.
+      const matches = q
+        ? [...p.model.files.keys()]
+            .filter((f) => f.toLowerCase().includes(q))
+            // Shorter paths first: the closer the match is to the whole path, the likelier it is the one meant.
+            .sort((a, b) => a.length - b.length || (a < b ? -1 : 1))
+        : [...p.model.files.keys()].sort();
       const { items, ...counts } = capped(matches, limit);
-      return { query, ...counts, files: items.map((path) => ({ path, role: roleOf(p, path)?.role ?? null })) };
+      return { query: q || null, ...counts, files: items.map((path) => ({ path, role: roleOf(p, path)?.role ?? null })) };
     },
   },
 

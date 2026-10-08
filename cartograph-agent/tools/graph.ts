@@ -29,9 +29,10 @@ export const searchFiles = tool(
     name: "search_files",
     description:
       "Find files whose path contains the given text, case-insensitive, e.g. 'auth', 'middleware', 'components/button'. " +
-      "Returns matching paths with their roles. Use it to turn a topic into real paths before looking anything else up.",
+      "Returns matching paths with their roles, and how many matched in all. Use it to turn a topic into real paths " +
+      "before looking anything else up. Leave the query out to list every file, in path order: the only way to list files.",
     schema: z.object({
-      query: z.string().min(1).max(200).describe("Part of a path."),
+      query: z.string().max(200).optional().describe("Part of a path. Leave it out to list every file."),
       limit: z.number().int().min(1).max(100).optional().describe("Most matches to return. Defaults to 25."),
     }),
   },
