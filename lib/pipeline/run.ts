@@ -110,8 +110,16 @@ async function repositoryOf(db: AdminSupabase, id: string): Promise<{ repo: Repo
  * Source files no convention gave a role, each with its text and its
  * neighbours. Tests, declarations, config and scripts already say what they
  * are by their names; a skipped or unreadable file has no code to read.
+ *
+ * `which` picks among the readable source files; the default is the ones no
+ * convention named. Evaluation picks the ones it did, to ask about them with
+ * the role hidden.
  */
-function labelCandidates(result: ParseResult, directory: string): LabelCandidate[] {
+export function labelCandidates(
+  result: ParseResult,
+  directory: string,
+  which: (file: ParseResult["files"][number]) => boolean = (f) => f.role === null,
+): LabelCandidate[] {
   const imports = new Map<string, Set<string>>();
   const importedBy = new Map<string, Set<string>>();
   for (const e of result.edges) {
@@ -122,7 +130,7 @@ function labelCandidates(result: ParseResult, directory: string): LabelCandidate
   }
   const sorted = (set: Set<string> | undefined) => [...(set ?? [])].sort();
   return result.files
-    .filter((f) => f.parsed && f.role === null && f.hash !== null && kindOf(f) === "source")
+    .filter((f) => f.parsed && f.hash !== null && kindOf(f) === "source" && which(f))
     .map((f) => ({
       path: f.path,
       hash: f.hash!,

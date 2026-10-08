@@ -9,15 +9,20 @@
 // The code explained is the analysed code: fetched at the analysed commit
 // and checked against the hash the parser stored, so the explanation always
 // matches the graph it sits beside.
+//
+// Every answer the model writes is checked, as it is written, for paths it
+// was never shown (invented.ts), and the run is scored with the result: an
+// evaluator running against live traffic, not only against a saved dataset.
 
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cacheKey, readExplanation, writeExplanation } from "../ai/cache.ts";
-import { ai, MODELS, traced } from "../ai/client.ts";
+import { ai, MODELS, scoreRun, traced } from "../ai/client.ts";
 import { foldRepository } from "../canvas/fold.ts";
 import { fetchFileAt, type RepositoryRef } from "../pipeline/github.ts";
 import type { AdminSupabase } from "../supabase/admin.ts";
 import type { Database } from "../supabase/database.types.ts";
+import { checkPaths, describeCheck, PATHS_GROUNDED, shownPaths } from "./invented.ts";
 import { loadFilePlaces, loadNeighbourhood, type NeighbourFile } from "./neighbourhood.ts";
 import {
   FILE_INSTRUCTIONS,
@@ -88,16 +93,30 @@ function settingOf(analysis: AnalysisRef): Setting {
   };
 }
 
-async function write(
-  input: Request,
-  subject: "file" | "folder",
-  key: string,
-  instructions: string,
-  prompt: string,
-): Promise<Written> {
-  const model = MODELS.explain;
+/** Recorded as its own step, so a trace holds the evidence (what was named, what was shown) beside the score. */
+const checkInventedPaths = traced(
+  "invented-path check",
+  async (input: { body: string; prompt: string }) => {
+    const shown = shownPaths(input.prompt);
+    const check = checkPaths(input.body, shown);
+    return {
+      ...check,
+      listed: [...shown.listed].sort(byString),
+      quoted: [...shown.quoted].sort(byString),
+      comment: describeCheck(check, shown),
+    };
+  },
+  { run_type: "parser", processInputs: (inputs) => ({ explanation: inputs.body }) },
+);
+
+/**
+ * One model call: an explanation from these instructions and this input. No
+ * cache and no check. Evaluation calls it too, so a prompt is compared under
+ * exactly the settings the app writes with.
+ */
+export async function generateExplanation(instructions: string, prompt: string): Promise<string> {
   const response = await ai().responses.create({
-    model,
+    model: MODELS.explain,
     instructions,
     input: prompt,
     reasoning: { effort: "low" },
@@ -111,6 +130,22 @@ async function write(
         : "The model answered with nothing.",
     );
   }
+  return body;
+}
+
+async function write(
+  input: Request,
+  subject: "file" | "folder",
+  key: string,
+  instructions: string,
+  prompt: string,
+): Promise<Written> {
+  const model = MODELS.explain;
+  const body = await generateExplanation(instructions, prompt);
+  const check = await checkInventedPaths({ body, prompt });
+  scoreRun(PATHS_GROUNDED, check.score, check.comment);
+  if (check.score === 0) console.warn(`An explanation named paths it was not shown. ${check.comment}`);
+
   await writeExplanation(input.admin, { orgId: input.analysis.orgId, key, subject, model, body });
   return { body, model, cached: false };
 }
@@ -121,50 +156,68 @@ const traceInputs = (analysis: AnalysisRef) => ({
   commit: analysis.commit,
 });
 
+/** A file, what it is connected to, and the cache key all of that decides. */
+interface FileQuestion {
+  file: NeighbourFile;
+  imports: NeighbourFile[];
+  importedBy: NeighbourFile[];
+  key: string;
+}
+
+async function fileQuestion(db: Db, analysis: AnalysisRef, path: string): Promise<FileQuestion> {
+  const hood = await loadNeighbourhood(db, analysis.id, [path]);
+  const file = hood.files.find((f) => f.member);
+  if (!file) throw new ExplainError(`${path} is not a file in this analysis.`);
+
+  const byPath = new Map(hood.files.map((f) => [f.path, f]));
+  const imports = hood.pairs.filter(([s]) => s === path).map(([, t]) => byPath.get(t)!);
+  const importedBy = hood.pairs.filter(([, t]) => t === path).map(([s]) => byPath.get(s)!);
+
+  // Everything that decides the answer. Neighbours' hashes are in it
+  // because their opening lines are shown.
+  const key = cacheKey([
+    "explain file",
+    PROMPT_VERSIONS.file,
+    MODELS.explain,
+    analysis.framework,
+    [file.path, file.hash, file.role],
+    imports.map((f) => [f.path, f.hash, f.role]),
+    importedBy.map((f) => [f.path, f.hash, f.role]),
+  ]);
+  return { file, imports, importedBy, key };
+}
+
+/** The input the model is given: the file in full, its neighbours listed, the most used of them excerpted. */
+async function filePrompt(analysis: AnalysisRef, { file, imports, importedBy }: FileQuestion): Promise<string> {
+  const text = await analysedText(analysis, file);
+  if (text === null) {
+    throw new ExplainError(
+      file.hash
+        ? `${file.path} at ${analysis.commit.slice(0, 7)} could not be fetched from GitHub, or no longer matches what was parsed.`
+        : `${file.path} could not be read when it was analysed, so there is no code to explain it from.`,
+    );
+  }
+  const mostUsed = (files: readonly NeighbourFile[], n: number) =>
+    [...files].sort((a, b) => b.fanIn - a.fanIn || byString(a.path, b.path)).slice(0, n);
+  const excerpts = await excerptsOf(analysis, [
+    ...mostUsed(imports, FILE_EXCERPTS.imports),
+    ...mostUsed(importedBy, FILE_EXCERPTS.importedBy),
+  ]);
+  return fileInput(settingOf(analysis), file, imports, importedBy, text, excerpts);
+}
+
+/** Exactly what explaining `path` would show the model, for building evaluation datasets. No cache, no model. */
+export async function fileExplanationInput(db: Db, analysis: AnalysisRef, path: string): Promise<string> {
+  return filePrompt(analysis, await fileQuestion(db, analysis, path));
+}
+
 export const explainFile = traced(
   "explain file",
   async (input: Request & { path: string }): Promise<Written> => {
-    const { db, analysis, path } = input;
-    const hood = await loadNeighbourhood(db, analysis.id, [path]);
-    const file = hood.files.find((f) => f.member);
-    if (!file) throw new ExplainError(`${path} is not a file in this analysis.`);
-
-    const byPath = new Map(hood.files.map((f) => [f.path, f]));
-    const imports = hood.pairs.filter(([s]) => s === path).map(([, t]) => byPath.get(t)!);
-    const importedBy = hood.pairs.filter(([, t]) => t === path).map(([s]) => byPath.get(s)!);
-
-    // Everything that decides the answer. Neighbours' hashes are in it
-    // because their opening lines are shown.
-    const model = MODELS.explain;
-    const key = cacheKey([
-      "explain file",
-      PROMPT_VERSIONS.file,
-      model,
-      analysis.framework,
-      [file.path, file.hash, file.role],
-      imports.map((f) => [f.path, f.hash, f.role]),
-      importedBy.map((f) => [f.path, f.hash, f.role]),
-    ]);
-    const cached = await readExplanation(db, analysis.orgId, key);
+    const question = await fileQuestion(input.db, input.analysis, input.path);
+    const cached = await readExplanation(input.db, input.analysis.orgId, question.key);
     if (cached) return { ...cached, cached: true };
-
-    const text = await analysedText(analysis, file);
-    if (text === null) {
-      throw new ExplainError(
-        file.hash
-          ? `${path} at ${analysis.commit.slice(0, 7)} could not be fetched from GitHub, or no longer matches what was parsed.`
-          : `${path} could not be read when it was analysed, so there is no code to explain it from.`,
-      );
-    }
-    const mostUsed = (files: readonly NeighbourFile[], n: number) =>
-      [...files].sort((a, b) => b.fanIn - a.fanIn || byString(a.path, b.path)).slice(0, n);
-    const excerpts = await excerptsOf(analysis, [
-      ...mostUsed(imports, FILE_EXCERPTS.imports),
-      ...mostUsed(importedBy, FILE_EXCERPTS.importedBy),
-    ]);
-
-    const prompt = fileInput(settingOf(analysis), file, imports, importedBy, text, excerpts);
-    return write(input, "file", key, FILE_INSTRUCTIONS, prompt);
+    return write(input, "file", question.key, FILE_INSTRUCTIONS, await filePrompt(input.analysis, question));
   },
   {
     run_type: "chain",

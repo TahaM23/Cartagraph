@@ -62,7 +62,8 @@ const lookUp = traced(
   },
 );
 
-async function ask(batch: readonly LabelCandidate[]): Promise<Map<string, ModelRole>> {
+/** One model call: a role, or none, for each file in the batch. No cache. Exported for evaluation. */
+export async function askRoles(batch: readonly LabelSubject[]): Promise<Map<string, ModelRole>> {
   const response = await ai().responses.create({
     model: MODELS.label,
     instructions: LABEL_INSTRUCTIONS,
@@ -104,7 +105,7 @@ export const labelFiles = traced(
     const worker = async () => {
       while (next < batches.length) {
         const batch = batches[next++];
-        const answered = await ask(batch);
+        const answered = await askRoles(batch);
         await writeRoleLabels(
           db,
           orgId,
