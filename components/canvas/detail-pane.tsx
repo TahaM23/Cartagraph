@@ -7,6 +7,7 @@ import { INSIGHT_SENTENCES, type Loop } from "@/lib/canvas/insights";
 import { groupUnit, rowUnit } from "@/lib/canvas/view";
 import type { Route } from "@/lib/parser/contract";
 import { useAnalysis } from "./analysis";
+import { AskPane, useConversation } from "./ask";
 import { CategoryLabel } from "./category-label";
 import { Explanation } from "./explanation";
 import { SWATCH } from "./swatch";
@@ -34,13 +35,32 @@ function size(bytes: number) {
  * selection changing.
  */
 export function DetailPane() {
-  const { selected, hover } = useAnalysis();
+  const { id, selected, hover } = useAnalysis();
   const [tab, setTab] = useState<Tab>("structure");
   const [reach, setReach] = useState<Reach>(null);
+  // Ask is a mode of the whole pane, not a third tab: a question about the
+  // repository is not about the selection, and a tab would vanish with it.
+  // Toggling out returns to whatever is selected.
+  const [asking, setAsking] = useState(false);
+  const conversation = useConversation(id);
 
   return (
     <div className="flex min-h-full flex-col text-[13px]" onPointerLeave={() => hover(null)}>
-      {selected?.startsWith("f:") ? (
+      <div className="flex justify-end border-b border-border px-4 py-1.5">
+        <button
+          type="button"
+          aria-pressed={asking}
+          onClick={() => setAsking((a) => !a)}
+          className={`rounded-md border px-2 py-0.5 ${
+            asking ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {asking ? "Close Ask" : "Ask"}
+        </button>
+      </div>
+      {asking ? (
+        <AskPane conversation={conversation} />
+      ) : selected?.startsWith("f:") ? (
         <FileDetail path={selected.slice(2)} tab={tab} setTab={setTab} reach={reach} setReach={setReach} />
       ) : selected?.startsWith("g:") ? (
         <FolderDetail dir={selected.slice(2)} tab={tab} setTab={setTab} />

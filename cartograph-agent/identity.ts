@@ -1,13 +1,9 @@
-import { auth, defineIdentity } from "managed-deepagents";
+import { defineIdentity } from "managed-deepagents";
 
-// Who may call this deployment.
-//
-// LangSmith workspace API keys authenticate callers through `x-api-key` while
-// retaining MDA's thread and store authorization hooks.
-//
-// Managed identity gives every caller private threads and downstream
-// credentials. Durable memory is not an identity axis — declare it in
-// `memory.ts`.
+// Who may call this deployment: only Cartograph's server. It signs the person
+// in with Clerk, checks they can see the analysis, then calls here with
+// MDA_INGRESS_SECRET and their user id, so each person's conversations are
+// their own. Browsers never call the agent directly.
 export const identity = defineIdentity({
-  auth: auth.langsmithApiKey(),
+  auth: "backend",
 });

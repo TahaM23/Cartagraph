@@ -158,7 +158,7 @@ type Target = { kind: "file"; path: string } | { kind: "folder"; dir: string };
  * prose made a link that moves the map. Only paths the analysis has are
  * links; anything else stays text.
  */
-function ExplanationBody({ text }: { text: string }) {
+export function ExplanationBody({ text }: { text: string }) {
   const { model } = useAnalysis();
   const blocks = useMemo(() => parseExplanation(text), [text]);
   const resolve = useMemo(
