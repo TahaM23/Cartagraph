@@ -42,7 +42,6 @@ Select any file to see what it imports, what imports it, and what breaks if it c
 8. [Scripts](#scripts)
 9. [Project structure](#project-structure)
 10. [Troubleshooting](#troubleshooting)
-11. [Credits](#credits)
 
 ---
 
@@ -357,7 +356,3 @@ docs/                   product doc, phase specs, diagrams
 - **Ask's lookups fail with "access … refused or has expired".** The Vault secret does not match `AGENT_CREDENTIAL_SECRET`, or the migrations were not pushed.
 - **The agent fails with "401 Incorrect API key".** Check `OPENAI_API_KEY` in `cartograph-agent/.env` for a stray character.
 - **A repository will not analyse.** Only public repositories are supported, with at most 5,000 TypeScript or JavaScript source files.
-
-## Credits
-
-Built by following [JavaScript Mastery](https://www.youtube.com/@javascriptmastery)'s tutorial "Nobody Can Read AI Code Anymore". The original project is [adrianhajdin/cartograph](https://github.com/adrianhajdin/cartograph).
