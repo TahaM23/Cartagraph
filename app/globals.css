@@ -37,6 +37,8 @@
   --cat-types: #1b8fa6;
   --cat-config: #7f7a2e;
   --cat-script: #a8573a;
+  /* The front page's hero: warm paper, the one surface that is not grey. */
+  --paper: #fbf8ee;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -57,6 +59,7 @@
     --cat-types: #4cb8cc;
     --cat-config: #b5ae5a;
     --cat-script: #d0825f;
+    --paper: #14130f;
   }
 }
 
@@ -77,6 +80,7 @@
   --cat-types: #4cb8cc;
   --cat-config: #b5ae5a;
   --cat-script: #d0825f;
+  --paper: #14130f;
 }
 
 @theme inline {
@@ -95,6 +99,8 @@
   --color-cat-types: var(--cat-types);
   --color-cat-config: var(--cat-config);
   --color-cat-script: var(--cat-script);
+  --color-paper: var(--paper);
+  --font-serif: var(--font-serif-display);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

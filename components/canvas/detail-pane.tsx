@@ -51,8 +51,8 @@ export function DetailPane() {
           type="button"
           aria-pressed={asking}
           onClick={() => setAsking((a) => !a)}
-          className={`rounded-md border px-2 py-0.5 ${
-            asking ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
+          className={`rounded-lg px-2.5 py-1 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+            asking ? "border border-border text-muted-foreground hover:text-foreground" : "bg-accent text-white hover:brightness-110"
           }`}
         >
           {asking ? "Close Ask" : "Ask"}

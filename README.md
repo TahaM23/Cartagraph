@@ -58,7 +58,7 @@ Most AI code tools let a model *describe* the structure. Cartograph doesn't. **E
 - **Security in the database.** Row-level security is switched on for every table automatically, so a forgotten rule shows nothing instead of everything.
 - **An agent that can't be tricked.** It never knows which analysis it's reading. A signed, 30-minute pass does, and the database checks it. A "read someone else's data" prompt hidden in a repo has nothing to work with.
 - **One source of truth.** The agent's lookups run the same code that draws the map, so they always agree (40 and 40 above).
-- **AI you can measure.** Every model call is traced and cached, answers are checked for made-up file paths, and the agent has its own eval.
+- **AI you can measure.** Explanations and labels are traced in LangSmith and cached by file content, so the same file never costs twice. Every explanation is checked for made-up file paths, and the Ask agent has its own eval.
 
 ## How it works
 

@@ -51,6 +51,26 @@ const DIM = "*:opacity-25";
 const HOT_BOX = "ring-2 ring-accent";
 const HOT_ROW = "bg-muted ring-1 ring-inset ring-accent";
 
+/** Graph-paper spacing at 1×, in map units. */
+const PAPER = 24;
+
+/**
+ * Dots under the map that pan and zoom with it, so the boxes sit on paper
+ * rather than float over a screen. Faint, and under everything: boxes are
+ * opaque and lines draw above. Zoomed far out the spacing doubles instead of
+ * crowding into a grey wash.
+ */
+function paper(t: Transform | null) {
+  if (!t) return undefined;
+  let size = PAPER * t.k;
+  while (size < 12) size *= 2;
+  return {
+    backgroundImage: "radial-gradient(circle, color-mix(in srgb, var(--faint-foreground) 55%, transparent) 1px, transparent 1.3px)",
+    backgroundSize: `${size}px ${size}px`,
+    backgroundPosition: `${t.x}px ${t.y}px`,
+  };
+}
+
 function fit(r: Rect, vw: number, vh: number, maxK: number, pad: number): Transform {
   const k = Math.max(MIN_K, Math.min(maxK, (vw - 2 * pad) / r.w, (vh - 2 * pad) / r.h));
   return { k, x: vw / 2 - (r.x + r.w / 2) * k, y: vh / 2 - (r.y + r.h / 2) * k };
@@ -310,6 +330,7 @@ export function CodeMap() {
     <div
       ref={viewport}
       className="absolute inset-0 cursor-grab touch-none overflow-hidden select-none active:cursor-grabbing"
+      style={paper(transform)}
       onPointerDown={(e) => {
         if (!transform || (e.target as Element).closest("[data-unit]")) return;
         drag.current = { x: e.clientX, y: e.clientY, tx: transform.x, ty: transform.y, moved: false };
@@ -397,7 +418,7 @@ export function CodeMap() {
                 onClick={() => openDir(box.dir)}
                 {...hoverProps(unit)}
                 style={position}
-                className={`absolute flex flex-col justify-center overflow-hidden rounded-md border bg-background px-3 text-left whitespace-nowrap *:transition-opacity hover:border-accent ${
+                className={`absolute flex flex-col justify-center overflow-hidden rounded-lg border bg-background shadow-[0_1px_2px_rgb(0_0_0/0.06),0_4px_12px_-4px_rgb(0_0_0/0.10)] px-3 text-left whitespace-nowrap *:transition-opacity hover:border-accent ${
                   isSelected ? "border-accent" : "border-border"
                 } ${hot(unit) ? HOT_BOX : ""} ${dim(unit)}`}
               >
@@ -421,7 +442,7 @@ export function CodeMap() {
               style={position}
               data-scroll={maxScroll(box.files.length) > 0 ? box.dir : undefined}
               data-files={box.files.length}
-              className={`absolute overflow-hidden rounded-md border bg-background shadow-sm ${
+              className={`absolute overflow-hidden rounded-lg border bg-background shadow-[0_1px_2px_rgb(0_0_0/0.06),0_4px_12px_-4px_rgb(0_0_0/0.10)] ${
                 selected === groupUnit(box.dir) ? "border-accent" : "border-border"
               } ${hot(groupUnit(box.dir)) ? HOT_BOX : ""}`}
             >
@@ -490,7 +511,7 @@ export function CodeMap() {
         })}
       </div>
 
-      <div className="absolute right-3 bottom-3 flex overflow-hidden rounded-md border border-border bg-background text-muted-foreground" data-unit>
+      <div className="absolute right-3 bottom-3 flex overflow-hidden rounded-lg border border-border bg-background text-muted-foreground shadow-[0_1px_2px_rgb(0_0_0/0.06),0_4px_12px_-4px_rgb(0_0_0/0.10)]" data-unit>
         <MapButton label="Zoom out" onClick={() => zoomBy(1 / 1.25)}>−</MapButton>
         <MapButton label="Zoom in" onClick={() => zoomBy(1.25)}>+</MapButton>
         <MapButton label="Fit to view" onClick={fitAll}>fit</MapButton>
