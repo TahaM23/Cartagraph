@@ -35,8 +35,19 @@ export function AnalysisShell({
         className="flex min-h-0 flex-col overflow-y-auto border-r border-border"
       >
         <div className="border-b border-border px-3 py-2.5">
-          <p className="truncate font-mono font-medium" title={repository}>
-            {repository}
+          <p className="flex items-center gap-2 font-mono font-medium" title={repository}>
+            {repository.includes("/") && (
+              // The owner's GitHub picture, as on the dashboard; next/image would need GitHub as a configured host for no gain.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`https://github.com/${encodeURIComponent(repository.split("/")[0])}.png?size=40`}
+                alt=""
+                width={20}
+                height={20}
+                className="size-5 shrink-0 rounded-[5px] bg-muted ring-1 ring-border"
+              />
+            )}
+            <span className="truncate">{repository}</span>
           </p>
           <p className="flex items-baseline justify-between gap-2 text-muted-foreground">
             {files === 1 ? "1 file" : `${files} files`}

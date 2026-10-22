@@ -32,7 +32,7 @@ export function LiveState({ id, initial, readAt }: { id: string; initial: RunPro
   return (
     <span className="flex items-center gap-2" title={progress.message ?? undefined}>
       <StateGlyph state={stale ? "stale" : progress.status} />
-      {label}
+      {label.charAt(0).toUpperCase() + label.slice(1)}
     </span>
   );
 }
